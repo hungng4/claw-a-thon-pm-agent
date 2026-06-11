@@ -1,0 +1,42 @@
+# Cấu hình agent cho AgentBase / OpenClaw
+name: "Mạnh - PM Agent for Game Production"
+version: "0.1.0"
+
+# Model: ưu tiên MaaS của Claw-a-thon (Gemma / Qwen) theo tinh thần cuộc thi.
+# Có thể đổi sang model ngoài (tự chịu chi phí, phải khai báo trong README - FAQ rulebook).
+model:
+  provider: "maas"            # maas | openai | anthropic
+  name: "qwen-3-27b"          # hoặc gemma-4-31b-it
+  base_url_env: "MAAS_BASE_URL"
+  api_key_env: "MAAS_API_KEY"
+  temperature: 0.3
+  max_tokens: 1024
+
+system_prompt_file: "agent/system_prompt.md"
+
+skills:
+  - agent/skills/sprint_tracking.md
+  - agent/skills/milestone_roadmap.md
+  - agent/skills/risk_blocker.md
+  - agent/skills/reporting.md
+
+# Tool agent được phép gọi (map sang integrations/notion/notion_client.py)
+tools:
+  - notion.query
+  - notion.create
+  - notion.update
+  - notion.comment
+  - clock.now
+
+channel:
+  type: "zalo"               # deploy thành tài khoản chat trong nhóm Zalo
+  webhook_path: "/webhook/zalo"
+
+# Báo cáo định kỳ (chạy qua scheduler của AgentBase nếu có)
+schedules:
+  - name: "daily_standup_digest"
+    cron: "0 9 * * 1-5"      # 9h sáng các ngày trong tuần
+    action: "reporting:daily_standup"
+  - name: "weekly_report"
+    cron: "0 17 * * 5"       # 17h thứ Sáu
+    action: "reporting:weekly"
