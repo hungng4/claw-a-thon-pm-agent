@@ -14,7 +14,6 @@ from datetime import date, datetime
 from pathlib import Path
 
 import yaml
-from openai import OpenAI
 
 import sys
 sys.path.append(str(Path(__file__).resolve().parents[1]))
@@ -107,15 +106,21 @@ _FILTERS = {
 
 
 class PMAgent:
-    def __init__(self):
+    def __init__(self, client=None, notion=None):
+        """client / notion có thể được inject để test offline.
+        Mặc định khởi tạo OpenAI client (lazy import) + NotionClient thật."""
         self.cfg = load_config()
         self.system_prompt = build_system_prompt(self.cfg)
-        self.notion = NotionClient()
+        self.notion = notion or NotionClient()
         m = self.cfg["model"]
-        self.client = OpenAI(
-            base_url=os.environ.get(m["base_url_env"], "https://maas.greennode.ai/v1"),
-            api_key=os.environ.get(m["api_key_env"], "sk-noop"),
-        )
+        if client is not None:
+            self.client = client
+        else:
+            from openai import OpenAI  # lazy import: chỉ cần khi chạy thật
+            self.client = OpenAI(
+                base_url=os.environ.get(m["base_url_env"], "https://maas.greennode.ai/v1"),
+                api_key=os.environ.get(m["api_key_env"], "sk-noop"),
+            )
         self.model_name = m["name"]
         self.temperature = m.get("temperature", 0.3)
 

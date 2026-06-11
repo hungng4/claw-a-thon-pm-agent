@@ -48,6 +48,12 @@ tests/
   test_notion_props.py      # test offline chuyển đổi property
 ```
 
+## Kiểm tra agent chạy được (không cần creds)
+```bash
+./run_tests.sh        # compile + 3 bộ test offline (mock model + Notion + Zalo)
+```
+Bộ test này chứng minh: chuyển đổi dữ liệu Notion, **vòng tool-calling end-to-end** (model gọi tool → agent query → trả lời), và webhook Zalo (boot Flask, tự khai báo AI, route tin nhắn). Không cần MaaS/Notion/Zalo thật.
+
 ## Quickstart (local)
 ```bash
 pip install -r requirements.txt
@@ -55,8 +61,8 @@ cp .env.example .env          # điền NOTION_TOKEN, MAAS_API_KEY, db ids, zalo
 
 # Tạo 4 database trên Notion theo integrations/notion/schema.md, nhập docs/sample_data.md
 
-python tests/test_notion_props.py     # kiểm tra nhanh (không cần network)
-python src/agent.py                   # REPL chat thử với agent
+./run_tests.sh                        # test offline (không cần network)
+python src/agent.py                   # REPL chat thử với agent (cần MAAS_API_KEY + NOTION_TOKEN)
 python src/zalo_adapter.py            # chạy webhook server (port 8080)
 ```
 

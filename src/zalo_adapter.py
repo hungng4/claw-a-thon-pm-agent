@@ -17,7 +17,20 @@ from flask import Flask, jsonify, request
 from agent import PMAgent
 
 app = Flask(__name__)
-pm = PMAgent()
+
+# Agent khởi tạo lazy: chỉ dựng khi có request đầu tiên (cần creds MaaS/Notion).
+# Test có thể gán app.config["AGENT"] = <fake> để inject.
+_pm: PMAgent | None = None
+
+
+def get_agent() -> PMAgent:
+    global _pm
+    if app.config.get("AGENT") is not None:
+        return app.config["AGENT"]
+    if _pm is None:
+        _pm = PMAgent()
+    return _pm
+
 
 # Lịch sử hội thoại theo từng nhóm (demo: in-memory; production nên dùng store ngoài)
 _history: dict[str, list[dict]] = {}
@@ -71,7 +84,7 @@ def webhook():
         return jsonify({"ok": True})
 
     hist = _history.setdefault(sender, [])
-    answer = pm.reply(text, hist)
+    answer = get_agent().reply(text, hist)
     hist += [{"role": "user", "content": text}, {"role": "assistant", "content": answer}]
     _history[sender] = hist[-20:]  # giữ 10 lượt gần nhất
 
