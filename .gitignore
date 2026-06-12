@@ -3,6 +3,11 @@
 .env.*
 *.key
 credentials.json
+.greennode.json
+
+# AgentBase runtime/state
+.agentbase/
+.agentbase-state.json
 
 # Python
 __pycache__/
@@ -20,3 +25,6 @@ data/cache/
 # OS
 .DS_Store
 Thumbs.db
+
+# AgentBase deploy skills (source repo; copy lives in .claude/skills/)
+greennode-agentbase-skills/
