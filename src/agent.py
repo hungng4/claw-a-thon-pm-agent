@@ -26,6 +26,20 @@ from integrations.notion.notion_client import (  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 
+# Lời chào / tự khai báo là AI (rulebook Claw-a-thon 11.1). Nguồn sự thật duy nhất,
+# dùng chung cho cả AgentBase entrypoint (main.py) lẫn Zalo adapter — đừng để trôi lệch.
+GREETING = (
+    "Chào cả nhà 👋 Mình là Mạnh 🤖 — trợ lý AI hỗ trợ PM cho tổ sản xuất game, "
+    "không phải người thật nha. Cứ hỏi mình về sprint, task, milestone, blocker hay báo cáo nhé!"
+)
+
+_GREETING_TRIGGERS = ("/start", "hi", "chào mạnh")
+
+
+def is_greeting_trigger(text: str) -> bool:
+    """True nếu tin nhắn là lệnh chào -> agent nên tự khai báo là AI."""
+    return (text or "").strip().lower() in _GREETING_TRIGGERS
+
 
 # ---------- nạp cấu hình & prompt ----------
 def load_config() -> dict:
@@ -117,11 +131,14 @@ class PMAgent:
             self.client = client
         else:
             from openai import OpenAI  # lazy import: chỉ cần khi chạy thật
-            self.client = OpenAI(
-                base_url=os.environ.get(m["base_url_env"], "https://maas.greennode.ai/v1"),
-                api_key=os.environ.get(m["api_key_env"], "sk-noop"),
+            # Ưu tiên chuẩn env của AgentBase (LLM_*) — xem /agentbase-llm; fallback về
+            # tên env khai trong config.yaml (MAAS_*) rồi tới default, để không phá local/test.
+            base_url = os.environ.get("LLM_BASE_URL") or os.environ.get(
+                m["base_url_env"], "https://maas.greennode.ai/v1"
             )
-        self.model_name = m["name"]
+            api_key = os.environ.get("LLM_API_KEY") or os.environ.get(m["api_key_env"], "sk-noop")
+            self.client = OpenAI(base_url=base_url, api_key=api_key)
+        self.model_name = os.environ.get("LLM_MODEL") or m["name"]
         self.temperature = m.get("temperature", 0.3)
 
     # ---- thực thi tool ----

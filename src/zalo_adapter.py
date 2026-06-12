@@ -14,7 +14,7 @@ import os
 import requests
 from flask import Flask, jsonify, request
 
-from agent import PMAgent
+from agent import PMAgent, GREETING, is_greeting_trigger
 
 app = Flask(__name__)
 
@@ -34,11 +34,6 @@ def get_agent() -> PMAgent:
 
 # Lịch sử hội thoại theo từng nhóm (demo: in-memory; production nên dùng store ngoài)
 _history: dict[str, list[dict]] = {}
-
-GREETING = (
-    "Chào cả nhà 👋 Mình là Mạnh 🤖 — trợ lý AI hỗ trợ PM cho tổ sản xuất game, "
-    "không phải người thật nha. Cứ hỏi mình về sprint, task, milestone, blocker hay báo cáo nhé!"
-)
 
 ZALO_SEND_URL = "https://openapi.zalo.me/v3.0/oa/message/cs"
 
@@ -76,7 +71,7 @@ def webhook():
     event_name = event.get("event_name", "")
 
     # Lời chào / khai báo AI khi được thêm vào nhóm hoặc gặp lệnh chào
-    if event_name in ("follow", "user_join_group") or text.lower() in ("/start", "hi", "chào mạnh"):
+    if event_name in ("follow", "user_join_group") or is_greeting_trigger(text):
         send_message(sender, GREETING)
         return jsonify({"ok": True})
 

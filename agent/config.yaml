@@ -6,7 +6,7 @@ version: "0.1.0"
 # Có thể đổi sang model ngoài (tự chịu chi phí, phải khai báo trong README - FAQ rulebook).
 model:
   provider: "maas"            # maas | openai | anthropic
-  name: "qwen-3-27b"          # hoặc gemma-4-31b-it
+  name: "qwen/qwen3-5-27b"    # GreenNode MaaS path; runtime ưu tiên env LLM_MODEL nếu có
   base_url_env: "MAAS_BASE_URL"
   api_key_env: "MAAS_API_KEY"
   temperature: 0.3
