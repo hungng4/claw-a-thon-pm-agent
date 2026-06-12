@@ -1,0 +1,35 @@
+# Python / venv
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Secrets & state (KHÔNG đưa vào image)
+.env
+.env.*
+.greennode.json
+*.key
+credentials.json
+*.credentials.json
+.agentbase/
+.agentbase-state.json
+
+# Git & tooling
+.git/
+.gitignore
+.claude/
+greennode-agentbase-skills/
+
+# Tài liệu / dev-only (LƯU Ý: KHÔNG dùng *.md blanket — agent/*.md cần cho runtime)
+README.md
+CLAUDE.md
+docs/
+tests/
+
+# OS
+.DS_Store
+Thumbs.db
+*.log
+logs/
