@@ -23,13 +23,18 @@ chạy trên máy bạn (hoặc bất kỳ máy nào có internet), **không c�
    pip install requests
    ```
 
-3. **Chạy bridge**:
+3. **Bỏ token vào `.env`** (file đã gitignore — KHÔNG lên git). Mở `.env` ở gốc repo, thêm:
+   ```
+   TELEGRAM_BOT_TOKEN=123456:ABC-...
+   BOT_USERNAME=manh_pm_bot
+   ```
+   (`AGENT_ENDPOINT_URL` đã có sẵn trong `.env`.) Bridge tự đọc `.env` qua python-dotenv.
+
+4. **Chạy bridge** (từ thư mục gốc repo):
    ```bash
-   export TELEGRAM_BOT_TOKEN="123456:ABC-..."           # token từ BotFather
-   export AGENT_ENDPOINT_URL="https://endpoint-36cacee7-c038-4d8a-9e8f-1202f51d4624.agentbase-runtime.aiplatform.vngcloud.vn"
-   export BOT_USERNAME="manh_pm_bot"                      # để nhận @mention trong nhóm (không gồm @)
    python3 bridge/telegram_bridge.py
    ```
+   > Không muốn dùng `.env`? Có thể `export TELEGRAM_BOT_TOKEN=...` trong shell rồi chạy — biến môi trường được ưu tiên như nhau.
 
 4. Nhắn cho bot (DM): gõ gì cũng được. Trong nhóm: `Mạnh sprint sao rồi?` hoặc `/start`.
 

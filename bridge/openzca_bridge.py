@@ -26,7 +26,10 @@ import os
 import subprocess
 
 import requests
+from dotenv import load_dotenv
 from flask import Flask, jsonify, request
+
+load_dotenv()  # tự nạp biến từ .env ở thư mục gốc
 
 AGENT_ENDPOINT_URL = os.environ.get("AGENT_ENDPOINT_URL", "").rstrip("/")
 BRIDGE_PORT = int(os.environ.get("BRIDGE_PORT", "3000"))

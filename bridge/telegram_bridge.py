@@ -26,6 +26,9 @@ import os
 import time
 
 import requests
+from dotenv import load_dotenv
+
+load_dotenv()  # tự nạp biến từ .env ở thư mục gốc (chạy bridge từ gốc repo)
 
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 AGENT_ENDPOINT_URL = os.environ.get("AGENT_ENDPOINT_URL", "").rstrip("/")
