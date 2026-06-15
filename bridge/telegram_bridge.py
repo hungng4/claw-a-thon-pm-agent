@@ -1,0 +1,177 @@
+"""Bridge nối Telegram ↔ agent "Mạnh" trên AgentBase (long-polling, không cần URL công khai).
+
+Luồng:
+    [Chat/Nhóm Telegram] → Telegram Bot API (getUpdates, long-poll)
+        → bridge gọi AGENT_ENDPOINT_URL/invocations (kèm header user/session cho Memory)
+        → lấy câu trả lời → sendMessage trả về Telegram.
+
+Chạy trên máy bạn (hoặc bất kỳ đâu có internet ra). Xem README ở cuối repo / bridge/README_telegram.md.
+
+Quy ước hành xử (giống bản Zalo, chốt với Nate):
+    - Nhóm: CHỈ trả lời khi tin bắt đầu bằng prefix (BOT_PREFIXES), @mention bot,
+      là /command, hoặc là reply vào tin của bot.
+    - Chat 1-1 (private): trả lời mọi tin.
+
+Cấu hình qua biến môi trường:
+    TELEGRAM_BOT_TOKEN  (bắt buộc)  token từ @BotFather
+    AGENT_ENDPOINT_URL  (bắt buộc)  URL endpoint agent trên AgentBase
+    BOT_USERNAME        (tuỳ chọn)  username bot (không gồm @), để nhận diện @mention trong nhóm
+    BOT_PREFIXES        (mặc "mạnh,/manh,manh")  prefix kích hoạt trong nhóm
+    AGENT_TIMEOUT       (mặc 60)    timeout (giây) gọi agent
+    POLL_TIMEOUT        (mặc 30)    long-poll timeout (giây) cho getUpdates
+"""
+from __future__ import annotations
+
+import os
+import time
+
+import requests
+
+TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+AGENT_ENDPOINT_URL = os.environ.get("AGENT_ENDPOINT_URL", "").rstrip("/")
+BOT_USERNAME = os.environ.get("BOT_USERNAME", "").lstrip("@").strip().lower()
+BOT_PREFIXES = [p.strip().lower() for p in os.environ.get("BOT_PREFIXES", "mạnh,/manh,manh").split(",") if p.strip()]
+AGENT_TIMEOUT = int(os.environ.get("AGENT_TIMEOUT", "60"))
+POLL_TIMEOUT = int(os.environ.get("POLL_TIMEOUT", "30"))
+
+API = "https://api.telegram.org/bot{token}/{method}"
+
+
+# ---------- hàm thuần (test offline được) ----------
+def extract_message(update: dict) -> dict | None:
+    """Rút thông tin tin nhắn text từ 1 Telegram update. Trả None nếu không phải tin text cần xử lý."""
+    msg = update.get("message") or update.get("edited_message")
+    if not msg:
+        return None
+    text = (msg.get("text") or msg.get("caption") or "").strip()
+    if not text:
+        return None
+    chat = msg.get("chat") or {}
+    frm = msg.get("from") or {}
+    chat_type = chat.get("type", "")
+    reply_to = msg.get("reply_to_message") or {}
+    reply_from = (reply_to.get("from") or {})
+    return {
+        "text": text,
+        "chat_id": str(chat.get("id", "")),
+        "chat_type": chat_type,
+        "is_group": chat_type in ("group", "supergroup"),
+        "user_id": str(frm.get("id", "")),
+        "message_id": msg.get("message_id"),
+        "entities": msg.get("entities") or [],
+        "reply_to_bot": bool(reply_from.get("is_bot")),
+    }
+
+
+def _mentions_bot(text: str, entities: list[dict]) -> bool:
+    """True nếu tin có @mention trùng BOT_USERNAME (cần BOT_USERNAME được set)."""
+    if not BOT_USERNAME:
+        return False
+    low = text.lower()
+    for e in entities:
+        if e.get("type") == "mention":
+            off, length = e.get("offset", 0), e.get("length", 0)
+            handle = low[off:off + length].lstrip("@")
+            if handle == BOT_USERNAME:
+                return True
+    return False
+
+
+def _is_command(entities: list[dict]) -> bool:
+    return any(e.get("type") == "bot_command" and e.get("offset", 1) == 0 for e in entities)
+
+
+def should_respond(msg: dict) -> tuple[bool, str]:
+    """Quyết định có trả lời không + nội dung đã bỏ prefix.
+
+    Private: luôn trả lời. Nhóm: chỉ khi prefix / @mention / /command / reply-vào-bot.
+    """
+    text = msg["text"]
+    if not msg["is_group"]:
+        return True, text
+
+    low = text.lower()
+    for p in BOT_PREFIXES:
+        if low.startswith(p):
+            return True, (text[len(p):].lstrip(" :,-").strip() or text)
+    if _mentions_bot(text, msg["entities"]):
+        # bỏ phần "@username" khỏi câu cho gọn
+        return True, text.replace(f"@{BOT_USERNAME}", "", 1).strip() if BOT_USERNAME else text
+    if _is_command(msg["entities"]) or msg["reply_to_bot"]:
+        return True, text
+    return False, text
+
+
+# ---------- I/O ----------
+def ask_agent(message: str, user_id: str, session_id: str) -> str:
+    if not AGENT_ENDPOINT_URL:
+        raise RuntimeError("Chưa set AGENT_ENDPOINT_URL")
+    resp = requests.post(
+        f"{AGENT_ENDPOINT_URL}/invocations",
+        headers={
+            "Content-Type": "application/json",
+            "X-GreenNode-AgentBase-User-Id": user_id or "tg-unknown",
+            "X-GreenNode-AgentBase-Session-Id": session_id or "tg-default",
+        },
+        json={"message": message},
+        timeout=AGENT_TIMEOUT,
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    if data.get("status") == "error":
+        return f"⚠️ {data.get('error', 'agent lỗi')}"
+    return data.get("message", "")
+
+
+def send_message(chat_id: str, text: str, reply_to: int | None = None) -> None:
+    if not text:
+        return
+    payload = {"chat_id": chat_id, "text": text}
+    if reply_to is not None:
+        payload["reply_to_message_id"] = reply_to
+    requests.post(API.format(token=TELEGRAM_BOT_TOKEN, method="sendMessage"), json=payload, timeout=30)
+
+
+def handle_update(update: dict, ask_fn=ask_agent, send_fn=send_message) -> bool:
+    """Xử lý 1 update. Trả True nếu đã trả lời, False nếu bỏ qua. (ask_fn/send_fn inject để test.)"""
+    msg = extract_message(update)
+    if not msg or not msg["chat_id"]:
+        return False
+    respond, content = should_respond(msg)
+    if not respond:
+        return False
+    try:
+        answer = ask_fn(content, msg["user_id"], msg["chat_id"])
+        send_fn(msg["chat_id"], answer, msg["message_id"] if msg["is_group"] else None)
+    except Exception as e:  # noqa: BLE001
+        print(f"[tg-bridge] lỗi xử lý chat {msg['chat_id']}: {e}")
+    return True
+
+
+# ---------- vòng long-polling ----------
+def poll_loop() -> None:
+    offset = None
+    print(f"[tg-bridge] long-polling… -> agent: {AGENT_ENDPOINT_URL}")
+    while True:
+        try:
+            params = {"timeout": POLL_TIMEOUT}
+            if offset is not None:
+                params["offset"] = offset
+            r = requests.get(
+                API.format(token=TELEGRAM_BOT_TOKEN, method="getUpdates"),
+                params=params, timeout=POLL_TIMEOUT + 15,
+            )
+            r.raise_for_status()
+            for upd in r.json().get("result", []):
+                offset = upd["update_id"] + 1
+                handle_update(upd)
+        except requests.RequestException as e:
+            print(f"[tg-bridge] lỗi mạng, thử lại sau 3s: {e}")
+            time.sleep(3)
+
+
+if __name__ == "__main__":
+    missing = [k for k, v in {"TELEGRAM_BOT_TOKEN": TELEGRAM_BOT_TOKEN, "AGENT_ENDPOINT_URL": AGENT_ENDPOINT_URL}.items() if not v]
+    if missing:
+        raise SystemExit(f"⚠️ Thiếu biến môi trường: {', '.join(missing)}")
+    poll_loop()

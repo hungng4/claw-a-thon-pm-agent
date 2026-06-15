@@ -1,0 +1,103 @@
+"""Test Telegram bridge OFFLINE — parse update, trigger nhóm/private, handle_update.
+
+Không gọi Telegram/agent thật: ask_fn/send_fn inject fake.
+"""
+import sys
+from pathlib import Path
+
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+
+from bridge import telegram_bridge as t  # noqa: E402
+
+
+def _update(text, chat_type="private", chat_id=1, user_id=9, entities=None, reply_bot=False):
+    msg = {"message_id": 5, "text": text, "chat": {"id": chat_id, "type": chat_type},
+           "from": {"id": user_id}, "entities": entities or []}
+    if reply_bot:
+        msg["reply_to_message"] = {"from": {"is_bot": True}}
+    return {"update_id": 100, "message": msg}
+
+
+def test_extract_basic():
+    m = t.extract_message(_update("  xin chào  ", chat_type="supergroup", chat_id=42))
+    assert m["text"] == "xin chào" and m["chat_id"] == "42" and m["is_group"] is True
+    assert t.extract_message({"update_id": 1}) is None       # không có message
+    assert t.extract_message(_update("")) is None            # text rỗng
+    print("PASS extract")
+
+
+def test_private_always():
+    ok, content = t.should_respond(t.extract_message(_update("báo cáo đi", chat_type="private")))
+    assert ok is True and content == "báo cáo đi"
+    print("PASS private trả lời mọi tin")
+
+
+def test_group_prefix_strips():
+    ok, content = t.should_respond(t.extract_message(_update("Mạnh sprint sao rồi", chat_type="group")))
+    assert ok is True and content == "sprint sao rồi", content
+    print("PASS group prefix -> trả lời + bỏ prefix")
+
+
+def test_group_no_trigger_ignored():
+    ok, _ = t.should_respond(t.extract_message(_update("tám chuyện", chat_type="group")))
+    assert ok is False
+    print("PASS group không trigger -> bỏ qua")
+
+
+def test_group_command():
+    ents = [{"type": "bot_command", "offset": 0, "length": 6}]
+    ok, _ = t.should_respond(t.extract_message(_update("/start", chat_type="group", entities=ents)))
+    assert ok is True
+    print("PASS group /command -> trả lời")
+
+
+def test_group_reply_to_bot():
+    ok, _ = t.should_respond(t.extract_message(_update("ok cảm ơn", chat_type="group", reply_bot=True)))
+    assert ok is True
+    print("PASS group reply-vào-bot -> trả lời")
+
+
+def test_group_mention():
+    saved = t.BOT_USERNAME
+    t.BOT_USERNAME = "manhbot"
+    try:
+        ents = [{"type": "mention", "offset": 0, "length": 8}]
+        ok, content = t.should_respond(t.extract_message(
+            _update("@manhbot blocker nào gấp", chat_type="group", entities=ents)))
+        assert ok is True and "blocker" in content
+    finally:
+        t.BOT_USERNAME = saved
+    print("PASS group @mention -> trả lời")
+
+
+def test_handle_update_group():
+    captured = {}
+    ask = lambda message, user_id, session_id: f"reply:{message}|u={user_id}|s={session_id}"
+    send = lambda chat_id, text, reply_to=None: captured.update(chat=chat_id, text=text, reply=reply_to)
+    done = t.handle_update(_update("Mạnh tình hình", chat_type="supergroup", chat_id=7, user_id=3),
+                           ask_fn=ask, send_fn=send)
+    assert done is True
+    assert captured["chat"] == "7" and captured["reply"] == 5
+    assert captured["text"] == "reply:tình hình|u=3|s=7", captured["text"]
+    print("PASS handle_update group -> gọi agent + sendMessage")
+
+
+def test_handle_update_ignored():
+    captured = {}
+    send = lambda *a, **k: captured.update(sent=True)
+    done = t.handle_update(_update("chuyện phiếm", chat_type="group"), ask_fn=lambda *a: "x", send_fn=send)
+    assert done is False and "sent" not in captured
+    print("PASS handle_update group không trigger -> bỏ qua")
+
+
+if __name__ == "__main__":
+    test_extract_basic()
+    test_private_always()
+    test_group_prefix_strips()
+    test_group_no_trigger_ignored()
+    test_group_command()
+    test_group_reply_to_bot()
+    test_group_mention()
+    test_handle_update_group()
+    test_handle_update_ignored()
+    print("\n✅ Telegram bridge PASS — parse update, trigger nhóm/private, handle_update.")
