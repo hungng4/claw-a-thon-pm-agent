@@ -31,26 +31,40 @@ DB_ENV = {
 
 class NotionClient:
     def __init__(self, token: str | None = None):
-        self.token = token or os.environ["NOTION_TOKEN"]
-        self.headers = {
+        # Không bắt buộc token lúc khởi tạo: agent vẫn boot khi chưa nối Notion.
+        # Chỉ báo lỗi (được PMAgent._run_tool bắt) khi thực sự gọi API Notion.
+        self.token = token or os.environ.get("NOTION_TOKEN", "")
+
+    @property
+    def headers(self) -> dict:
+        return {
             "Authorization": f"Bearer {self.token}",
             "Notion-Version": NOTION_VERSION,
             "Content-Type": "application/json",
         }
 
     # ---- internal ----
+    def _require_token(self) -> None:
+        if not self.token:
+            raise RuntimeError("Chưa nối Notion (thiếu NOTION_TOKEN) — vui lòng cấu hình để dùng dữ liệu.")
+
     def _db_id(self, database: str) -> str:
         env_key = DB_ENV.get(database.lower())
         if not env_key:
             raise ValueError(f"Database không hợp lệ: {database}")
-        return os.environ[env_key]
+        db_id = os.environ.get(env_key)
+        if not db_id:
+            raise RuntimeError(f"Chưa cấu hình database Notion '{database}' (thiếu {env_key}).")
+        return db_id
 
     def _post(self, path: str, payload: dict) -> dict:
+        self._require_token()
         r = requests.post(f"{BASE}/{path}", headers=self.headers, json=payload, timeout=30)
         r.raise_for_status()
         return r.json()
 
     def _patch(self, path: str, payload: dict) -> dict:
+        self._require_token()
         r = requests.patch(f"{BASE}/{path}", headers=self.headers, json=payload, timeout=30)
         r.raise_for_status()
         return r.json()

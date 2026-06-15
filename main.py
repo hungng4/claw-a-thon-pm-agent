@@ -53,41 +53,48 @@ def _memory_client():
 def _load_history(user_id: str, session_id: str) -> list[dict]:
     if not MEMORY_ID:
         return _local_history.get(session_id, [])
-    client = _memory_client()
-    result = asyncio.run(
-        client.list_events_async(id=MEMORY_ID, actorId=user_id, sessionId=session_id, page=1, size=20)
-    )
-    # API trả mới -> cũ; đảo lại thành thứ tự thời gian cho model đọc.
-    events = list(reversed(list(result.list_data)))
-    return [{"role": e.role, "content": e.content} for e in events if e.role and e.content]
+    try:
+        client = _memory_client()
+        result = asyncio.run(
+            client.list_events_async(id=MEMORY_ID, actorId=user_id, sessionId=session_id, page=1, size=20)
+        )
+        # API trả mới -> cũ; đảo lại thành thứ tự thời gian cho model đọc.
+        events = list(reversed(list(result.list_data)))
+        return [{"role": e.role, "content": e.content} for e in events if e.role and e.content]
+    except Exception as e:  # noqa: BLE001 — Memory best-effort: lỗi thì degrade, KHÔNG làm sập bot.
+        print(f"[memory] đọc lịch sử lỗi, dùng fallback in-memory: {e}")
+        return _local_history.get(session_id, [])
 
 
 def _save_turn(user_id: str, session_id: str, user_msg: str, assistant_msg: str) -> None:
-    if not MEMORY_ID:
+    def _save_local() -> None:
         hist = _local_history.setdefault(session_id, [])
         hist += [{"role": "user", "content": user_msg}, {"role": "assistant", "content": assistant_msg}]
         _local_history[session_id] = hist[-20:]
+
+    if not MEMORY_ID:
+        _save_local()
         return
 
-    from greennode_agentbase.memory.models import ChatMessage, EventCreateRequest
+    try:
+        from greennode_agentbase.memory.models import ChatMessage, EventCreateRequest
 
-    client = _memory_client()
+        client = _memory_client()
 
-    async def _persist() -> None:
-        await client.create_event_async(
-            id=MEMORY_ID,
-            actorId=user_id,
-            sessionId=session_id,
-            request=EventCreateRequest(payload=ChatMessage(role="user", content=user_msg)),
-        )
-        await client.create_event_async(
-            id=MEMORY_ID,
-            actorId=user_id,
-            sessionId=session_id,
-            request=EventCreateRequest(payload=ChatMessage(role="assistant", content=assistant_msg)),
-        )
+        async def _persist() -> None:
+            await client.create_event_async(
+                id=MEMORY_ID, actorId=user_id, sessionId=session_id,
+                request=EventCreateRequest(payload=ChatMessage(role="user", content=user_msg)),
+            )
+            await client.create_event_async(
+                id=MEMORY_ID, actorId=user_id, sessionId=session_id,
+                request=EventCreateRequest(payload=ChatMessage(role="assistant", content=assistant_msg)),
+            )
 
-    asyncio.run(_persist())
+        asyncio.run(_persist())
+    except Exception as e:  # noqa: BLE001 — Memory best-effort: lỗi thì lưu tạm in-memory.
+        print(f"[memory] lưu lịch sử lỗi, dùng fallback in-memory: {e}")
+        _save_local()
 
 
 # ---------- Entrypoint ----------
