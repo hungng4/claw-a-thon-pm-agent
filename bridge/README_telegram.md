@@ -53,5 +53,30 @@ chạy trên máy bạn (hoặc bất kỳ máy nào có internet), **không c�
 - `user_id` (người gửi) → header `X-GreenNode-AgentBase-User-Id` (actor cho long-term memory).
 - `chat_id` (chat/nhóm) → header `X-GreenNode-AgentBase-Session-Id` (mỗi nhóm = một mạch hội thoại + Memory riêng).
 
+## Chạy 24/7 (cho giai đoạn voting)
+
+Bot chỉ sống khi bridge chạy. Dùng script bền bỉ `bridge/run_bridge.sh` (tự restart + log):
+
+```bash
+# macOS — chặn máy ngủ, chạy nền, đóng terminal vẫn sống:
+nohup caffeinate -is bash bridge/run_bridge.sh >/dev/null 2>&1 &
+
+# Linux:
+nohup bash bridge/run_bridge.sh >/dev/null 2>&1 &
+
+# Xem log / kiểm tra:
+tail -f bridge/bridge.log
+
+# Dừng:
+pkill -f telegram_bridge.py ; pkill -f run_bridge.sh
+```
+
+Lưu ý máy 24/7:
+- **Laptop**: cắm điện + chỉnh không ngủ khi cắm điện (System Settings → Lock Screen/Energy). `caffeinate` chặn idle-sleep nhưng **đóng nắp** thì vẫn ngủ → mở nắp hoặc dùng máy bàn.
+- Máy cần **internet ổn định** và file **`.env`** (token + endpoint). Dùng máy khác: clone repo → `pip install requests python-dotenv` → tạo `.env` (3 biến) → chạy script.
+- Bridge chết/khởi động lại không sao — Telegram giữ tin chờ, bridge poll lại là nhận.
+
+---
+
 > Telegram là kênh **chính thức, dễ & ổn định** — khác openzca (Zalo cá nhân, rủi ro ToS).
 > Bản openzca vẫn còn trong repo (`bridge/openzca_bridge.py`) như phương án phụ.

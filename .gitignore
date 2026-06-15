@@ -22,6 +22,7 @@ venv/
 *.log
 logs/
 data/cache/
+bridge/bridge.log
 
 # OS
 .DS_Store
