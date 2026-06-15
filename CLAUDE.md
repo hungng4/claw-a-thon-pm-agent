@@ -47,38 +47,39 @@ Luồng runtime: **Zalo webhook → `PMAgent.reply()` → tool-calling loop → 
   string thường → rich_text; key `title`/`name` → title. 4 database: tasks/sprints/milestones/risks,
   mỗi cái map sang 1 biến env `NOTION_DB_*`. Filter dựng sẵn ở cuối file.
 
-- **`src/zalo_adapter.py`** — Flask webhook. `/webhook/zalo` (POST) verify chữ ký HMAC, route
-  event, gọi `get_agent().reply()`, gửi trả lời qua Zalo OA API. `/health` (GET) cho health check.
-  Agent khởi tạo **lazy** (chỉ dựng khi có request đầu); test inject fake qua `app.config["AGENT"]`.
-  Lịch sử hội thoại in-memory theo `sender`, giữ 10 lượt gần nhất.
+- **`main.py`** ⭐ — entrypoint production trên AgentBase (`GreenNodeAgentBaseApp`). Bọc
+  `PMAgent.reply()` trong `@app.entrypoint`, quản lý lịch sử theo `context.session_id` (Memory hoặc
+  in-memory fallback). Đây là file chạy trong container, KHÔNG phải `zalo_adapter.py`.
+
+- **`bridge/telegram_bridge.py`** ⭐ — kênh chính: long-polling Telegram → gọi `/invocations` → `sendMessage`.
+  Chạy trên máy dev. `bridge/openzca_bridge.py` = phương án phụ (Zalo cá nhân). Xem `bridge/README*.md`.
+
+- **`src/zalo_adapter.py`** — Flask webhook Zalo OA cũ, **đã bị thay bằng `main.py` + bridges**, giữ làm
+  tham chiếu (không dùng production). Test cũ vẫn chạy. `GREETING`/`is_greeting_trigger` import từ `agent.py`.
 
 Schema 4 database Notion ở `integrations/notion/schema.md`; dữ liệu mẫu + kịch bản demo ở `docs/sample_data.md`.
 
 ## Ràng buộc Claw-a-thon (bắt buộc, ảnh hưởng tới code)
 
-- Agent **PHẢI tự khai báo là AI** (rulebook 11.1) — xử lý ở `GREETING` trong `zalo_adapter.py`
-  và trong `system_prompt.md`. Đừng xoá phần này.
+- Agent **PHẢI tự khai báo là AI** (rulebook 11.1) — `GREETING` + `is_greeting_trigger` ở `src/agent.py`
+  (dùng chung cho `main.py` + bridges), và trong `system_prompt.md`. Đừng xoá phần này.
 - Chỉ dùng dữ liệu mẫu/synthetic/ẩn danh — **KHÔNG PII / dữ liệu khách hàng thật**.
 - Ưu tiên model MaaS (Gemma/Qwen) của GreenNode AI Platform.
 - Rulebook: https://greennode.ai/claw-a-thon-rulebook
 
-## ⚠️ Quyết định deploy đang mở (gate mọi refactor)
+## Deploy (ĐÃ CHỐT: Custom Agent — đang LIVE)
 
-Code hiện tại là Flask thuần — **chưa đúng contract AgentBase**. Hai hướng, **hỏi Nate chốt trước khi refactor**:
+Quyết định trước đây đã chốt **Custom Agent** (`/agent-runtimes`) và **đã deploy**. Entrypoint là
+`main.py` (`GreenNodeAgentBaseApp`: `@app.entrypoint` POST /invocations, `@app.ping` GET /health,
+port 8080), Docker `python:3.13-slim`, LLM map sang `LLM_BASE_URL/LLM_API_KEY/LLM_MODEL`. Kênh chat
+chính là **Telegram** (`bridge/telegram_bridge.py`, bot `@manh_pmbot`); openzca/Zalo là phương án phụ.
+Notion đã nối (4 DB mock). Memory hội thoại dùng in-memory fallback (runtime chặn egress tới Memory API).
 
-1. **Custom Agent** (`/agent-runtimes`): refactor `main.py` dùng `GreenNodeAgentBaseApp`
-   (`@app.entrypoint` cho `POST /invocations`, `@app.ping` cho `GET /health`, port 8080), thêm
-   `Dockerfile` (`FROM python:3.13-slim`), `requirements.txt` (`greennode-agentbase`). Giữ trọn logic
-   PM + Notion, Zalo nối qua bridge riêng. Khi chốt hướng này: map LLM sang OpenAI-compatible
-   (`LLM_BASE_URL=https://maas-llm-aiplatform-hcm.api.vngcloud.vn/v1`, `LLM_API_KEY`, `LLM_MODEL`
-   lấy qua skill `/agentbase-llm`) — lưu ý `config.yaml` hiện để base_url đoán, cần sửa.
-2. **OpenClaw Zalo** (`/openclaws`): template no-code, native Zalo, logic PM dồn vào system prompt,
-   Notion nối qua Resource Gateway (MCP). Handler Python không dùng.
+➡️ **Toàn bộ chi tiết handoff ở [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)** — tài nguyên đã deploy
+(runtime id, endpoint, image), biến môi trường, cách nối Notion, redeploy, known issues, kịch bản demo.
 
-Skill deploy đã copy vào `.claude/skills/` (project-local — tự nhận khi mở session trong repo này),
-dùng các slash command `/agentbase-*` như `/agentbase-wizard`. Repo nguồn `greennode-agentbase-skills/`
-đã gitignore (chỉ là bản clone tham chiếu). **Deploy cần Docker + IAM creds + mạng VNG — không chạy
-được trong Cowork sandbox.**
+Skill deploy ở `.claude/skills/agentbase*` (project-local), dùng `/agentbase-*` như `/agentbase-wizard`.
+Repo nguồn `greennode-agentbase-skills/` đã gitignore. **Deploy cần Docker + IAM creds (`.greennode.json`) + mạng VNG.**
 
 ## Git
 
