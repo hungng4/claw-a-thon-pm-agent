@@ -39,20 +39,22 @@ Giá trị: cắt giảm thời gian PM dành cho tổng hợp/đốc thúc th�
 
 ## Kịch bản video demo (2–3 phút)
 
-Chuẩn bị: bridge Telegram đang chạy, mock data đã có trên Notion (Sprint 12, task Blocked, milestone Alpha 72%). Quay màn hình Telegram + lướt qua Notion.
+Chuẩn bị: bridge Telegram đang chạy, mock data đã có trên Notion (15 task, Sprint 12 Active, milestone Alpha 72%, 2 task blocked). Mở sẵn 1 tab Notion để lia minh hoạ. Quay màn hình Telegram.
 
 | Thời lượng | Cảnh | Nội dung |
 |---|---|---|
-| 0:00–0:20 | **Hook** | Vấn đề: PM tốn thời gian tổng hợp Notion thủ công. Title card: "Mạnh — AI PM Assistant · Team Autobot". |
-| 0:20–0:35 | **Giới thiệu** | 1 slide kiến trúc: Telegram ⇄ AgentBase (Custom Agent, Qwen MaaS) ⇄ Notion. Nói nhanh 4 năng lực. |
-| 0:35–0:50 | **Khai báo AI** | Trong nhóm gõ `/start` → Mạnh tự giới thiệu là AI (rulebook 11.1). |
-| 0:50–1:15 | **Sprint tracking** | "Mạnh, sprint hiện tại sao rồi?" → tổng quan Sprint 12 + cảnh báo task quá hạn. |
-| 1:15–1:40 | **Blocker** | "Có blocker nào không?" → VFX combo (Bình, chờ asset particle) + đề xuất. |
-| 1:40–2:05 | **Milestone & risk** | "Alpha có kịp không?" → Alpha 72% + rủi ro trễ + đề xuất cắt scope. |
-| 2:05–2:35 | **Ghi Notion** | "Tạo task 'Fix camera shake' cho Cường due 18/06" → agent xác nhận → **lia qua Notion thấy task mới**. |
-| 2:35–2:55 | **Report + đóng** | "Viết weekly report giúp mình" → report. Đóng: giá trị + "Built on GreenNode AgentBase". |
+| 0:00–0:18 | **Hook** | Vấn đề: PM tốn thời gian tổng hợp Notion thủ công. Title card: "Mạnh — AI PM Assistant · Team Autobot". |
+| 0:18–0:32 | **Giới thiệu** | 1 slide kiến trúc: Telegram ⇄ AgentBase (Custom Agent, Qwen MaaS) ⇄ Notion + Memory. Nói nhanh 4 năng lực. |
+| 0:32–0:42 | **Khai báo AI** | Gõ `/start` → Mạnh tự giới thiệu là AI (rulebook 11.1). |
+| 0:42–1:05 | **Sprint tracking** | "Mạnh, sprint hiện tại sao rồi?" → tổng quan Sprint 12 + cảnh báo task quá hạn (bảng trong khung code, gọn). |
+| 1:05–1:25 | **Blocker** | "Có blocker nào không?" → 2 blocker (VFX combo, Tutorial flow) + đề xuất. |
+| 1:25–1:45 | **Milestone & risk** | "Alpha có kịp không?" → Alpha 72% + rủi ro trễ + đề xuất cắt scope. |
+| 1:45–2:10 | **Ghi Notion** | "Tạo task 'Fix camera shake' cho Cường due 18/06" → xác nhận → **lia qua Notion thấy task mới**. |
+| 2:10–2:30 | **Xuất file** | "Xuất weekly report ra file" → bot gửi **file `.md`** đính kèm ngay trong Telegram. |
+| 2:30–2:50 | **Trí nhớ (điểm nhấn)** | "Nhớ giúp tuần này ưu tiên combat" → hỏi lại "tuần này mình dặn gì?" → bot **nhớ** (AgentBase Memory). |
+| 2:50–3:00 | **Đóng** | Giá trị: PM hỏi-đáp tự nhiên, chủ động, nhớ ngữ cảnh. "Built on GreenNode AgentBase". |
 
-Mẹo: quay 1 lần liền mạch cho tự nhiên; nếu agent trả chậm thì cắt dựng. Giữ tổng ≤ 3 phút.
+Mẹo: quay 1 lần liền mạch; agent trả chậm thì cắt dựng. Bước **Xuất file + Trí nhớ** là khác biệt so với chatbot thường → nhấn mạnh khi voting. Giữ ≤ 3 phút (có thể bỏ bớt 1 nhịp nếu dài).
 
 ---
 

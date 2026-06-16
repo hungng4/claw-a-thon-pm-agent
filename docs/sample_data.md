@@ -31,8 +31,15 @@
 | Asset particle trễ ảnh hưởng VFX | High | Art Lead | Mitigating |
 
 ## Kịch bản demo (gợi ý cho video 2-3 phút)
-1. "Mạnh, sprint hiện tại thế nào rồi?" → agent query Notion, trả tổng quan + cảnh báo task quá hạn.
-2. "Có blocker nào không?" → liệt kê blocker + đề xuất hành động.
-3. "Alpha có kịp không?" → phân tích milestone + rủi ro trễ + đề xuất cắt scope.
-4. "Tạo task 'Fix camera shake' cho Cường, due 18/06" → agent xác nhận → ghi vào Notion.
-5. "Viết weekly report giúp mình" → agent tổng hợp report.
+
+Demo trên **Telegram** (bot `@manh_pmbot`). Dữ liệu mock đã có sẵn trên Notion (15 task, 3 sprint, 5 milestone, 4 risk).
+
+1. `/start` → Mạnh **tự khai báo là AI** (rulebook 11.1).
+2. "Mạnh, sprint hiện tại sao rồi?" → query Notion → tổng quan Sprint 12 + **cảnh báo task quá hạn** (bảng nằm trong khung code, gọn).
+3. "Có blocker nào không?" → liệt kê 2 blocker (VFX combo, Tutorial flow) + lý do + **đề xuất hành động**.
+4. "Alpha có kịp không?" → phân tích milestone Alpha (72%) + **rủi ro trễ** + đề xuất cắt scope.
+5. "Tạo task 'Fix camera shake' cho Cường due 18/06" → agent xác nhận → **ghi vào Notion** (lia qua Notion thấy task mới).
+6. "Xuất weekly report ra file giúp mình" → agent gửi **file `.md`** đính kèm về Telegram (tính năng export_file).
+7. **Memory** (điểm nhấn): "Nhớ giúp tuần này ưu tiên combat nhé" → lát sau hỏi "tuần này mình dặn ưu tiên gì?" → agent **nhớ** (lưu qua AgentBase Memory, bền qua phiên).
+
+> Mẹo quay: bám 7 nhịp trên, giữ ≤ 3 phút. Mở Notion sẵn 1 tab để minh hoạ bước 5. Bước 6-7 là khác biệt so với chatbot thường (xuất file + trí nhớ).
