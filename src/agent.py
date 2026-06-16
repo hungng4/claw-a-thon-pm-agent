@@ -210,9 +210,10 @@ class PMAgent:
     # ---- vòng lặp hội thoại ----
     def reply(self, user_message: str, history: list[dict] | None = None, extra_context: str | None = None) -> str:
         self.last_files = []  # reset file của lượt này
-        messages = [{"role": "system", "content": self.system_prompt}]
-        if extra_context:  # bộ nhớ recall từ AgentBase (team + ghi chú per-user) — main.py truyền vào
-            messages.append({"role": "system", "content": extra_context})
+        system_content = self.system_prompt
+        if extra_context:  # gộp recall vào 1 system message ở đầu (model chỉ chấp nhận 1 system, đứng đầu)
+            system_content += "\n\n---\n\n# Bộ nhớ (recall từ AgentBase Memory)\n" + extra_context
+        messages = [{"role": "system", "content": system_content}]
         if history:
             messages.extend(history)
         messages.append({"role": "user", "content": user_message})
