@@ -22,6 +22,7 @@ Cấu hình qua biến môi trường:
 """
 from __future__ import annotations
 
+import base64
 import os
 import time
 
@@ -220,7 +221,13 @@ def handle_update(update: dict, ask_fn=ask_agent, send_fn=send_message, doc_fn=s
         if text:
             send_fn(msg["chat_id"], text, reply_to)
         for f in files:
-            doc_fn(msg["chat_id"], f.get("filename", "file.txt"), f.get("content", ""))
+            # file nhị phân (vd .docx) đi qua payload dạng base64 -> decode về bytes;
+            # file text vẫn dùng content như cũ. send_document xử lý cả str lẫn bytes.
+            if f.get("content_b64"):
+                content = base64.b64decode(f["content_b64"])
+            else:
+                content = f.get("content", "")
+            doc_fn(msg["chat_id"], f.get("filename", "file.txt"), content)
     except Exception as e:  # noqa: BLE001
         print(f"[tg-bridge] lỗi xử lý chat {msg['chat_id']}: {e}")
     return True

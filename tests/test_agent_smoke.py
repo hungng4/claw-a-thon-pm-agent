@@ -125,9 +125,33 @@ def test_export_file_tool():
     print("PASS export_file tool: thu được file để gửi kèm")
 
 
+def test_export_file_docx():
+    """Xuất .docx: nếu có python-docx -> content_b64 là docx hợp lệ; nếu thiếu -> fallback .txt."""
+    import base64
+    agent = PMAgent(client=FakeClient(), notion=FakeNotion())
+    md = "# Báo cáo\n\n## Mục\n- a\n- b\n\n| x | y |\n|---|---|\n| 1 | 2 |"
+    res = json.loads(agent._run_tool("export_file", {"filename": "report.docx", "content": md}))
+    assert res["ok"]
+    f = agent.last_files[0]
+    try:
+        from docx import Document  # noqa: F401
+        has_docx = True
+    except ImportError:
+        has_docx = False
+    if has_docx:
+        assert res["file"] == "report.docx" and "content_b64" in f
+        data = base64.b64decode(f["content_b64"])
+        assert data[:2] == b"PK"  # docx = gói ZIP, magic 'PK'
+        print("PASS export_file .docx: dựng được file Word hợp lệ (PK zip)")
+    else:
+        assert res["file"] == "report.txt" and f["content"] == md  # fallback an toàn
+        print("PASS export_file .docx: thiếu lib -> fallback .txt đúng")
+
+
 if __name__ == "__main__":
     test_reply_loop_end_to_end()
     test_tool_dispatch_direct()
     test_clock_tool()
     test_export_file_tool()
+    test_export_file_docx()
     print("\n✅ Tất cả smoke test PASS — agent chạy trọn vòng local (mock model + Notion).")

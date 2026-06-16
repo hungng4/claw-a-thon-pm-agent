@@ -30,6 +30,8 @@ load_dotenv()
 app = GreenNodeAgentBaseApp()
 
 MEMORY_ID = os.environ.get("MEMORY_ID")
+MEMORY_STRATEGY_ID = os.environ.get("MEMORY_STRATEGY_ID")  # ltms id, để dựng namespace records
+TEAM_ACTOR = "team"  # namespace dùng chung cho fact team/dự án/phong cách nền
 _agent: PMAgent | None = None
 # Fallback khi chưa cấu hình Memory: lịch sử in-memory theo session (giữ 10 lượt gần nhất).
 _local_history: dict[str, list[dict]] = {}
@@ -103,6 +105,48 @@ def _save_turn(user_id: str, session_id: str, user_msg: str, assistant_msg: str)
         _save_local()
 
 
+# ---------- Bộ nhớ dài hạn: team + phong cách (AgentBase long-term records) ----------
+def _ns(actor: str) -> str:
+    return f"/strategies/{MEMORY_STRATEGY_ID}/actors/{actor}"
+
+
+def _rec_text(r) -> str | None:
+    return r.get("memory") if isinstance(r, dict) else getattr(r, "memory", None)
+
+
+def _recall_memory(user_id: str) -> str:
+    """Đọc fact team (namespace 'team') + ghi chú riêng người dùng -> ghép thành context cho prompt.
+
+    Best-effort: lỗi/timeout thì trả "" (bot vẫn chạy bình thường)."""
+    if not (MEMORY_ID and MEMORY_STRATEGY_ID):
+        return ""
+    try:
+        client = _memory_client()
+
+        async def _fetch():
+            shared = await client.list_memory_records_async(id=MEMORY_ID, namespace=_ns(TEAM_ACTOR))
+            personal = await client.list_memory_records_async(id=MEMORY_ID, namespace=_ns(user_id))
+            return shared, personal
+
+        shared, personal = asyncio.run(_fetch())
+
+        def _texts(res) -> list[str]:
+            items = res if isinstance(res, list) else (getattr(res, "list_data", None) or [])
+            return [t for t in (_rec_text(r) for r in items) if t]
+
+        blocks = []
+        facts = _texts(shared)
+        prefs = _texts(personal)
+        if facts:
+            blocks.append("Bộ nhớ về dự án & team (ghi nhớ lâu dài):\n- " + "\n- ".join(facts))
+        if prefs:
+            blocks.append("Ghi chú riêng về người dùng đang chat:\n- " + "\n- ".join(prefs))
+        return "\n\n".join(blocks)
+    except Exception as e:  # noqa: BLE001 — recall best-effort
+        print(f"[memory] recall lỗi: {e}")
+        return ""
+
+
 # ---------- Entrypoint ----------
 @app.entrypoint
 def handler(payload: dict, context: RequestContext) -> dict:
@@ -136,7 +180,8 @@ def handler(payload: dict, context: RequestContext) -> dict:
 
     history = _load_history(user_id, session_id)
     agent = get_agent()
-    answer = agent.reply(message, history)
+    extra_context = _recall_memory(user_id)  # team + ghi chú per-user từ AgentBase Memory
+    answer = agent.reply(message, history, extra_context=extra_context)
     _save_turn(user_id, session_id, message, answer)
     resp = {"status": "success", "message": answer, "session_id": session_id}
     files = getattr(agent, "last_files", []) or []

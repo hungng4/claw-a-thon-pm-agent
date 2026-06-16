@@ -114,14 +114,16 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "export_file",
-            "description": "Tạo 1 file (text) để gửi cho người dùng — dùng khi họ muốn 'xuất/gửi file', "
-            "'tải về', hoặc muốn báo cáo/danh sách dạng file (vd .md, .csv, .txt). "
-            "Đặt nội dung đầy đủ vào content. Sau khi gọi, vẫn trả lời text ngắn báo đã gửi file.",
+            "description": "Tạo 1 file để gửi cho người dùng — dùng khi họ muốn 'xuất/gửi file', "
+            "'tải về', hoặc muốn báo cáo/danh sách dạng file (.md, .csv, .txt, hoặc .docx cho Word). "
+            "Luôn đặt nội dung đầy đủ dạng markdown vào content; nếu filename đuôi .docx, hệ thống tự "
+            "dựng file Word (heading #/##, bullet -, bảng | a | b |, **đậm**). Sau khi gọi, vẫn trả lời "
+            "text ngắn báo đã gửi file.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "filename": {"type": "string", "description": "Tên file kèm đuôi, vd weekly_report.md, tasks.csv"},
-                    "content": {"type": "string", "description": "Toàn bộ nội dung file dạng text"},
+                    "filename": {"type": "string", "description": "Tên file kèm đuôi, vd weekly_report.docx, tasks.csv, report.md"},
+                    "content": {"type": "string", "description": "Toàn bộ nội dung file dạng text/markdown"},
                 },
                 "required": ["filename", "content"],
             },
@@ -178,16 +180,39 @@ class PMAgent:
                 return json.dumps({"now": datetime.now().isoformat(), "today": date.today().isoformat()})
             if name == "export_file":
                 fn = (args.get("filename") or "file.txt").strip()
-                self.last_files.append({"filename": fn, "content": args.get("content", "")})
+                content = args.get("content", "")
+                if fn.lower().endswith(".docx"):
+                    # .docx là binary -> dựng bytes bằng code rồi mang qua payload dạng base64.
+                    try:
+                        import base64
+                        from integrations.docx_export import markdown_to_docx
+                        data = markdown_to_docx(content)
+                        self.last_files.append(
+                            {"filename": fn, "content_b64": base64.b64encode(data).decode("ascii")}
+                        )
+                        return json.dumps(
+                            {"ok": True, "file": fn, "note": "File .docx đã tạo, hệ thống sẽ gửi kèm."},
+                            ensure_ascii=False,
+                        )
+                    except Exception as e:  # noqa: BLE001 — thiếu lib/lỗi build: fallback .txt cho khỏi vỡ luồng
+                        fn_txt = fn[:-5] + ".txt"
+                        self.last_files.append({"filename": fn_txt, "content": content})
+                        return json.dumps(
+                            {"ok": True, "file": fn_txt, "note": f"Không tạo được .docx ({e}); gửi .txt thay thế."},
+                            ensure_ascii=False,
+                        )
+                self.last_files.append({"filename": fn, "content": content})
                 return json.dumps({"ok": True, "file": fn, "note": "File đã tạo, hệ thống sẽ gửi kèm."}, ensure_ascii=False)
             return json.dumps({"error": f"unknown tool {name}"})
         except Exception as e:  # noqa: BLE001
             return json.dumps({"error": str(e)}, ensure_ascii=False)
 
     # ---- vòng lặp hội thoại ----
-    def reply(self, user_message: str, history: list[dict] | None = None) -> str:
+    def reply(self, user_message: str, history: list[dict] | None = None, extra_context: str | None = None) -> str:
         self.last_files = []  # reset file của lượt này
         messages = [{"role": "system", "content": self.system_prompt}]
+        if extra_context:  # bộ nhớ recall từ AgentBase (team + ghi chú per-user) — main.py truyền vào
+            messages.append({"role": "system", "content": extra_context})
         if history:
             messages.extend(history)
         messages.append({"role": "user", "content": user_message})

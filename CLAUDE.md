@@ -36,6 +36,7 @@ Luồng runtime: **Zalo webhook → `PMAgent.reply()` → tool-calling loop → 
 - **System prompt được lắp ráp lúc runtime** — `build_system_prompt()` nối `agent/system_prompt.md`
   (persona + luật hành xử + khai báo AI) với 4 skill playbook trong `agent/skills/` theo thứ tự liệt
   kê trong `agent/config.yaml`. Skill là **văn bản markdown nhồi vào prompt**, không phải code.
+  Team + phong cách per-user lưu ở **AgentBase Memory** (long-term records), recall lúc chạy (xem `main.py`).
 
 - **`agent/config.yaml`** — nguồn sự thật cho model, danh sách skill, tools, channel, schedules.
   `model.base_url_env`/`api_key_env` trỏ tới tên biến env (mặc định `MAAS_BASE_URL`/`MAAS_API_KEY`).

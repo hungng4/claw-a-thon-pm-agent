@@ -116,6 +116,22 @@ def test_handle_update_with_file():
     print("PASS handle_update gửi kèm file qua sendDocument")
 
 
+def test_handle_update_binary_file():
+    """File nhị phân (.docx) đi qua content_b64 -> handle_update decode về bytes trước khi gửi."""
+    import base64
+    raw = b"PK\x03\x04 fake-docx-bytes"
+    cap = {"docs": []}
+    ask = lambda m, u, s: {"text": "đã gửi", "files": [
+        {"filename": "report.docx", "content_b64": base64.b64encode(raw).decode("ascii")}]}
+    send = lambda chat_id, text, reply_to=None: None
+    doc = lambda chat_id, filename, content: cap["docs"].append((chat_id, filename, content))
+    t.handle_update(_update("Mạnh xuất docx", chat_type="private", chat_id="d2"),
+                    ask_fn=ask, send_fn=send, doc_fn=doc)
+    assert cap["docs"][0] == ("d2", "report.docx", raw)  # đã decode đúng bytes gốc
+    assert isinstance(cap["docs"][0][2], bytes)
+    print("PASS handle_update decode content_b64 -> bytes (gửi file .docx)")
+
+
 if __name__ == "__main__":
     test_extract_basic()
     test_private_always()
@@ -128,4 +144,5 @@ if __name__ == "__main__":
     test_handle_update_ignored()
     test_format_for_telegram()
     test_handle_update_with_file()
+    test_handle_update_binary_file()
     print("\n✅ Telegram bridge PASS — parse update, trigger nhóm/private, handle_update + file.")

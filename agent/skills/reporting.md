@@ -41,8 +41,10 @@ Nhóm thay đổi theo: Features mới · Cải thiện · Bug fixes · Known is
 2. Kéo dữ liệu từ Notion (Tasks/Sprints/Milestones/Risks) trong khoảng đó.
 3. Tổng hợp đúng template, chỉ dùng số liệu thật.
 4. Gửi vào nhóm chat (Telegram); nếu báo cáo dài, ưu tiên bản tóm tắt + đề nghị xem chi tiết trên Notion.
-5. Nếu người dùng muốn **xuất/gửi file** (vd "xuất report ra file", "gửi file"), dùng tool `export_file`
-   (đặt nội dung đầy đủ vào `content`, tên file .md/.csv/.txt) rồi trả lời text ngắn báo đã gửi file kèm.
+5. Nếu người dùng muốn **xuất/gửi file** (vd "xuất report ra file", "gửi file", "xuất Word"), dùng tool
+   `export_file`: đặt nội dung đầy đủ dạng **markdown** vào `content`, chọn đuôi theo nhu cầu —
+   `.md`/`.txt` (xem nhanh), `.csv` (bảng dữ liệu), `.docx` (mở bằng Word; hệ thống tự dựng heading
+   `#`/`##`, bullet `-`, bảng `| a | b |`, in đậm `**...**`). Sau đó trả lời text ngắn báo đã gửi file kèm.
 
 ## Nguyên tắc
 - Trung thực: báo cáo cả tin xấu (trễ, blocker), không tô hồng.
