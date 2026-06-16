@@ -110,6 +110,23 @@ TOOLS = [
             "parameters": {"type": "object", "properties": {}},
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "export_file",
+            "description": "Tạo 1 file (text) để gửi cho người dùng — dùng khi họ muốn 'xuất/gửi file', "
+            "'tải về', hoặc muốn báo cáo/danh sách dạng file (vd .md, .csv, .txt). "
+            "Đặt nội dung đầy đủ vào content. Sau khi gọi, vẫn trả lời text ngắn báo đã gửi file.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "filename": {"type": "string", "description": "Tên file kèm đuôi, vd weekly_report.md, tasks.csv"},
+                    "content": {"type": "string", "description": "Toàn bộ nội dung file dạng text"},
+                },
+                "required": ["filename", "content"],
+            },
+        },
+    },
 ]
 
 _FILTERS = {
@@ -140,6 +157,8 @@ class PMAgent:
             self.client = OpenAI(base_url=base_url, api_key=api_key)
         self.model_name = os.environ.get("LLM_MODEL") or m["name"]
         self.temperature = m.get("temperature", 0.3)
+        # File do tool export_file tạo trong lượt reply() gần nhất (caller như main.py đọc để gửi kèm).
+        self.last_files: list[dict] = []
 
     # ---- thực thi tool ----
     def _run_tool(self, name: str, args: dict) -> str:
@@ -157,12 +176,17 @@ class PMAgent:
                 return json.dumps({"ok": True, "id": res.get("id")}, ensure_ascii=False)
             if name == "clock_now":
                 return json.dumps({"now": datetime.now().isoformat(), "today": date.today().isoformat()})
+            if name == "export_file":
+                fn = (args.get("filename") or "file.txt").strip()
+                self.last_files.append({"filename": fn, "content": args.get("content", "")})
+                return json.dumps({"ok": True, "file": fn, "note": "File đã tạo, hệ thống sẽ gửi kèm."}, ensure_ascii=False)
             return json.dumps({"error": f"unknown tool {name}"})
         except Exception as e:  # noqa: BLE001
             return json.dumps({"error": str(e)}, ensure_ascii=False)
 
     # ---- vòng lặp hội thoại ----
     def reply(self, user_message: str, history: list[dict] | None = None) -> str:
+        self.last_files = []  # reset file của lượt này
         messages = [{"role": "system", "content": self.system_prompt}]
         if history:
             messages.extend(history)

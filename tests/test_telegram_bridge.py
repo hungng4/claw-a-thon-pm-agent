@@ -90,6 +90,19 @@ def test_handle_update_ignored():
     print("PASS handle_update group không trigger -> bỏ qua")
 
 
+def test_handle_update_with_file():
+    cap = {"msgs": [], "docs": []}
+    ask = lambda m, u, s: {"text": "đã gửi report", "files": [{"filename": "weekly.md", "content": "# Report"}]}
+    send = lambda chat_id, text, reply_to=None: cap["msgs"].append((chat_id, text))
+    doc = lambda chat_id, filename, content: cap["docs"].append((chat_id, filename, content))
+    done = t.handle_update(_update("Mạnh xuất report", chat_type="private", chat_id="d1"),
+                           ask_fn=ask, send_fn=send, doc_fn=doc)
+    assert done is True
+    assert cap["msgs"][0] == ("d1", "đã gửi report")
+    assert cap["docs"][0] == ("d1", "weekly.md", "# Report")
+    print("PASS handle_update gửi kèm file qua sendDocument")
+
+
 if __name__ == "__main__":
     test_extract_basic()
     test_private_always()
@@ -100,4 +113,5 @@ if __name__ == "__main__":
     test_group_mention()
     test_handle_update_group()
     test_handle_update_ignored()
-    print("\n✅ Telegram bridge PASS — parse update, trigger nhóm/private, handle_update.")
+    test_handle_update_with_file()
+    print("\n✅ Telegram bridge PASS — parse update, trigger nhóm/private, handle_update + file.")

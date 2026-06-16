@@ -106,7 +106,8 @@ def should_respond(msg: dict) -> tuple[bool, str]:
 
 
 # ---------- I/O ----------
-def ask_agent(message: str, user_id: str, session_id: str) -> str:
+def ask_agent(message: str, user_id: str, session_id: str) -> dict:
+    """Gọi agent, trả {'text': str, 'files': [{filename, content}]}."""
     if not AGENT_ENDPOINT_URL:
         raise RuntimeError("Chưa set AGENT_ENDPOINT_URL")
     resp = requests.post(
@@ -122,8 +123,8 @@ def ask_agent(message: str, user_id: str, session_id: str) -> str:
     resp.raise_for_status()
     data = resp.json()
     if data.get("status") == "error":
-        return f"⚠️ {data.get('error', 'agent lỗi')}"
-    return data.get("message", "")
+        return {"text": f"⚠️ {data.get('error', 'agent lỗi')}", "files": []}
+    return {"text": data.get("message", ""), "files": data.get("files") or []}
 
 
 def send_message(chat_id: str, text: str, reply_to: int | None = None) -> None:
@@ -135,8 +136,19 @@ def send_message(chat_id: str, text: str, reply_to: int | None = None) -> None:
     requests.post(API.format(token=TELEGRAM_BOT_TOKEN, method="sendMessage"), json=payload, timeout=30)
 
 
-def handle_update(update: dict, ask_fn=ask_agent, send_fn=send_message) -> bool:
-    """Xử lý 1 update. Trả True nếu đã trả lời, False nếu bỏ qua. (ask_fn/send_fn inject để test.)"""
+def send_document(chat_id: str, filename: str, content) -> None:
+    """Gửi 1 file (text) về Telegram qua sendDocument (multipart upload)."""
+    data_bytes = content.encode("utf-8") if isinstance(content, str) else (content or b"")
+    requests.post(
+        API.format(token=TELEGRAM_BOT_TOKEN, method="sendDocument"),
+        data={"chat_id": chat_id},
+        files={"document": (filename or "file.txt", data_bytes)},
+        timeout=60,
+    )
+
+
+def handle_update(update: dict, ask_fn=ask_agent, send_fn=send_message, doc_fn=send_document) -> bool:
+    """Xử lý 1 update. Trả True nếu đã trả lời, False nếu bỏ qua. (ask_fn/send_fn/doc_fn inject để test.)"""
     msg = extract_message(update)
     if not msg or not msg["chat_id"]:
         return False
@@ -144,8 +156,14 @@ def handle_update(update: dict, ask_fn=ask_agent, send_fn=send_message) -> bool:
     if not respond:
         return False
     try:
-        answer = ask_fn(content, msg["user_id"], msg["chat_id"])
-        send_fn(msg["chat_id"], answer, msg["message_id"] if msg["is_group"] else None)
+        res = ask_fn(content, msg["user_id"], msg["chat_id"])
+        text = res if isinstance(res, str) else (res.get("text") or "")
+        files = [] if isinstance(res, str) else (res.get("files") or [])
+        reply_to = msg["message_id"] if msg["is_group"] else None
+        if text:
+            send_fn(msg["chat_id"], text, reply_to)
+        for f in files:
+            doc_fn(msg["chat_id"], f.get("filename", "file.txt"), f.get("content", ""))
     except Exception as e:  # noqa: BLE001
         print(f"[tg-bridge] lỗi xử lý chat {msg['chat_id']}: {e}")
     return True

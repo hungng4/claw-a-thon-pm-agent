@@ -129,9 +129,14 @@ def handler(payload: dict, context: RequestContext) -> dict:
         return {"status": "error", "error": "payload.message rỗng."}
 
     history = _load_history(user_id, session_id)
-    answer = get_agent().reply(message, history)
+    agent = get_agent()
+    answer = agent.reply(message, history)
     _save_turn(user_id, session_id, message, answer)
-    return {"status": "success", "message": answer, "session_id": session_id}
+    resp = {"status": "success", "message": answer, "session_id": session_id}
+    files = getattr(agent, "last_files", []) or []
+    if files:
+        resp["files"] = files  # [{filename, content}] — bridge gửi qua sendDocument
+    return resp
 
 
 @app.ping

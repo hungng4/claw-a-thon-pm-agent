@@ -117,8 +117,17 @@ def test_clock_tool():
     print("PASS clock:", res["today"])
 
 
+def test_export_file_tool():
+    agent = PMAgent(client=FakeClient(), notion=FakeNotion())
+    res = json.loads(agent._run_tool("export_file", {"filename": "weekly.md", "content": "# Report\n- x"}))
+    assert res["ok"] and res["file"] == "weekly.md"
+    assert agent.last_files == [{"filename": "weekly.md", "content": "# Report\n- x"}]
+    print("PASS export_file tool: thu được file để gửi kèm")
+
+
 if __name__ == "__main__":
     test_reply_loop_end_to_end()
     test_tool_dispatch_direct()
     test_clock_tool()
+    test_export_file_tool()
     print("\n✅ Tất cả smoke test PASS — agent chạy trọn vòng local (mock model + Notion).")
