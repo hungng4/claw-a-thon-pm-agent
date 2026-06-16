@@ -215,7 +215,9 @@ class PMAgent:
 
 
 if __name__ == "__main__":
-    # REPL test nhanh local
+    # REPL test nhanh local — tự nạp .env (LLM_*, NOTION_*, MEMORY_ID) để khỏi export tay
+    from dotenv import load_dotenv
+    load_dotenv()
     agent = PMAgent()
     print("Mạnh 🤖 (gõ 'quit' để thoát)")
     hist: list[dict] = []
