@@ -59,8 +59,13 @@ def _load_history(user_id: str, session_id: str) -> list[dict]:
             client.list_events_async(id=MEMORY_ID, actorId=user_id, sessionId=session_id, page=1, size=20)
         )
         # API trả mới -> cũ; đảo lại thành thứ tự thời gian cho model đọc.
-        events = list(reversed(list(result.list_data)))
-        return [{"role": e.role, "content": e.content} for e in events if e.role and e.content]
+        events = list(reversed(list(result.list_data or [])))
+        out = []
+        for e in events:
+            p = getattr(e, "payload", None)
+            if p and p.role and p.message:
+                out.append({"role": p.role, "content": p.message})
+        return out
     except Exception as e:  # noqa: BLE001 — Memory best-effort: lỗi thì degrade, KHÔNG làm sập bot.
         print(f"[memory] đọc lịch sử lỗi, dùng fallback in-memory: {e}")
         return _local_history.get(session_id, [])
@@ -77,18 +82,19 @@ def _save_turn(user_id: str, session_id: str, user_msg: str, assistant_msg: str)
         return
 
     try:
-        from greennode_agentbase.memory.models import ChatMessage, EventCreateRequest
+        from greennode_agentbase.memory.models import EventCreateRequest, EventPayload
 
         client = _memory_client()
 
+        def _ev(role: str, msg: str):
+            return EventCreateRequest(payload=EventPayload(type="conversational", role=role, message=msg))
+
         async def _persist() -> None:
             await client.create_event_async(
-                id=MEMORY_ID, actorId=user_id, sessionId=session_id,
-                request=EventCreateRequest(payload=ChatMessage(role="user", content=user_msg)),
+                id=MEMORY_ID, actorId=user_id, sessionId=session_id, request=_ev("user", user_msg)
             )
             await client.create_event_async(
-                id=MEMORY_ID, actorId=user_id, sessionId=session_id,
-                request=EventCreateRequest(payload=ChatMessage(role="assistant", content=assistant_msg)),
+                id=MEMORY_ID, actorId=user_id, sessionId=session_id, request=_ev("assistant", assistant_msg)
             )
 
         asyncio.run(_persist())
