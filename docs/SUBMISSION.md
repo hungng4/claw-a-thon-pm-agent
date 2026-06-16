@@ -56,6 +56,8 @@ Chuẩn bị: bridge Telegram đang chạy, mock data đã có trên Notion (15 
 
 Mẹo: quay 1 lần liền mạch; agent trả chậm thì cắt dựng. Bước **Xuất file + Trí nhớ** là khác biệt so với chatbot thường → nhấn mạnh khi voting. Giữ ≤ 3 phút (có thể bỏ bớt 1 nhịp nếu dài).
 
+➡️ **Lời thoại (voiceover) chi tiết từng nhịp + bản đọc liền:** xem [`docs/video_script.md`](video_script.md).
+
 ---
 
 ## Concept thumbnail (16:9, 1280×720)
