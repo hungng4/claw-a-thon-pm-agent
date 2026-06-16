@@ -194,15 +194,27 @@ def send_message(chat_id: str, text: str, reply_to: int | None = None) -> None:
             requests.post(url, json={"chat_id": chat_id, "text": part}, timeout=30)
 
 
-def send_document(chat_id: str, filename: str, content) -> None:
-    """Gửi 1 file (text) về Telegram qua sendDocument (multipart upload)."""
+def send_document(chat_id: str, filename: str, content, retries: int = 4) -> bool:
+    """Gửi 1 file về Telegram qua sendDocument. Retry vì mạng tới Telegram hay chập chờn
+    (upload file dễ rớt hơn tin text). Trả True nếu gửi được."""
     data_bytes = content.encode("utf-8") if isinstance(content, str) else (content or b"")
-    requests.post(
-        API.format(token=TELEGRAM_BOT_TOKEN, method="sendDocument"),
-        data={"chat_id": chat_id},
-        files={"document": (filename or "file.txt", data_bytes)},
-        timeout=60,
-    )
+    url = API.format(token=TELEGRAM_BOT_TOKEN, method="sendDocument")
+    for attempt in range(retries):
+        try:
+            r = requests.post(
+                url,
+                data={"chat_id": chat_id},
+                files={"document": (filename or "file.txt", data_bytes)},
+                timeout=120,
+            )
+            if getattr(r, "ok", True):
+                return True
+            print(f"[tg-bridge] sendDocument HTTP {r.status_code} (thử {attempt + 1}/{retries})")
+        except requests.RequestException as e:
+            print(f"[tg-bridge] sendDocument lỗi mạng (thử {attempt + 1}/{retries}): {str(e)[:80]}")
+        time.sleep(3)
+    print(f"[tg-bridge] KHÔNG gửi được file {filename} sau {retries} lần (mạng Telegram).")
+    return False
 
 
 def handle_update(update: dict, ask_fn=ask_agent, send_fn=send_message, doc_fn=send_document) -> bool:
