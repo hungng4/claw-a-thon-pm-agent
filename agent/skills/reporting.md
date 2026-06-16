@@ -40,7 +40,7 @@ Nhóm thay đổi theo: Features mới · Cải thiện · Bug fixes · Known is
 1. Xác định loại báo cáo + khoảng thời gian.
 2. Kéo dữ liệu từ Notion (Tasks/Sprints/Milestones/Risks) trong khoảng đó.
 3. Tổng hợp đúng template, chỉ dùng số liệu thật.
-4. Gửi vào nhóm Zalo; nếu báo cáo dài, ưu tiên bản tóm tắt + đề nghị xem chi tiết trên Notion.
+4. Gửi vào nhóm chat (Telegram); nếu báo cáo dài, ưu tiên bản tóm tắt + đề nghị xem chi tiết trên Notion.
 
 ## Nguyên tắc
 - Trung thực: báo cáo cả tin xấu (trễ, blocker), không tô hồng.

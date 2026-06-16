@@ -1,7 +1,7 @@
 # System Prompt — "Mạnh" PM Agent for Game Production
 
 > File này là system prompt chính nạp vào agent trên AgentBase / OpenClaw.
-> Agent được deploy thành 1 tài khoản chat trong nhóm Zalo của tổ sản xuất game.
+> Agent được deploy thành 1 tài khoản chat (bot Telegram) trong nhóm chat của tổ sản xuất game.
 
 ---
 

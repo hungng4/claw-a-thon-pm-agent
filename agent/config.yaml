@@ -29,8 +29,8 @@ tools:
   - clock.now
 
 channel:
-  type: "zalo"               # deploy thành tài khoản chat trong nhóm Zalo
-  webhook_path: "/webhook/zalo"
+  type: "telegram"           # kênh chính: bot Telegram (qua bridge/telegram_bridge.py)
+  bot: "@manh_pmbot"
 
 # Báo cáo định kỳ (chạy qua scheduler của AgentBase nếu có)
 schedules:

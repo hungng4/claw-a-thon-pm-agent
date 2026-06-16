@@ -27,7 +27,7 @@ from integrations.notion.notion_client import (  # noqa: E402
 ROOT = Path(__file__).resolve().parents[1]
 
 # Lời chào / tự khai báo là AI (rulebook Claw-a-thon 11.1). Nguồn sự thật duy nhất,
-# dùng chung cho cả AgentBase entrypoint (main.py) lẫn Zalo adapter — đừng để trôi lệch.
+# dùng chung cho cả AgentBase entrypoint (main.py) lẫn các bridge (Telegram/openzca) — đừng để trôi lệch.
 GREETING = (
     "Chào cả nhà 👋 Mình là Mạnh 🤖 — trợ lý AI hỗ trợ PM cho tổ sản xuất game, "
     "không phải người thật nha. Cứ hỏi mình về sprint, task, milestone, blocker hay báo cáo nhé!"
