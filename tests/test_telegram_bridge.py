@@ -90,6 +90,16 @@ def test_handle_update_ignored():
     print("PASS handle_update group không trigger -> bỏ qua")
 
 
+def test_codeblock_and_chunk():
+    cb = t._as_codeblock("**bold** | x")
+    assert cb.startswith("```\n") and cb.endswith("\n```")
+    assert "\\`" in t._as_codeblock("`code`")      # backtick được escape
+    assert "\\\\" in t._as_codeblock("a\\b")        # backslash được escape
+    parts = t._chunks("line\n" * 2000, size=100)    # ~10k ký tự -> chia nhiều phần
+    assert len(parts) > 1 and all(len(p) <= 100 for p in parts)
+    print("PASS format code block + chunk dài")
+
+
 def test_handle_update_with_file():
     cap = {"msgs": [], "docs": []}
     ask = lambda m, u, s: {"text": "đã gửi report", "files": [{"filename": "weekly.md", "content": "# Report"}]}
@@ -113,5 +123,6 @@ if __name__ == "__main__":
     test_group_mention()
     test_handle_update_group()
     test_handle_update_ignored()
+    test_codeblock_and_chunk()
     test_handle_update_with_file()
     print("\n✅ Telegram bridge PASS — parse update, trigger nhóm/private, handle_update + file.")

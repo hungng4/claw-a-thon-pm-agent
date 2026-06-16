@@ -127,13 +127,50 @@ def ask_agent(message: str, user_id: str, session_id: str) -> dict:
     return {"text": data.get("message", ""), "files": data.get("files") or []}
 
 
+TG_LIMIT = 3900  # < 4096 của Telegram, chừa chỗ cho cặp ``` + ký tự escape
+
+
+def _escape_codeblock(text: str) -> str:
+    """Trong code block MarkdownV2 chỉ cần escape '\\' và '`'."""
+    return text.replace("\\", "\\\\").replace("`", "\\`")
+
+
+def _as_codeblock(text: str) -> str:
+    """Bọc text trong ``` ``` để Telegram hiển thị monospace (giữ thẳng hàng, không vỡ markdown)."""
+    return "```\n" + _escape_codeblock(text) + "\n```"
+
+
+def _chunks(text: str, size: int = TG_LIMIT) -> list[str]:
+    """Chia text thành các phần <= size, ưu tiên cắt theo dòng."""
+    if len(text) <= size:
+        return [text]
+    out, cur = [], ""
+    for line in text.split("\n"):
+        while len(line) > size:  # dòng quá dài -> cắt cứng
+            if cur:
+                out.append(cur); cur = ""
+            out.append(line[:size]); line = line[size:]
+        if cur and len(cur) + len(line) + 1 > size:
+            out.append(cur); cur = line
+        else:
+            cur = line if not cur else cur + "\n" + line
+    if cur:
+        out.append(cur)
+    return out
+
+
 def send_message(chat_id: str, text: str, reply_to: int | None = None) -> None:
+    """Gửi tin — bọc trong code block để dễ đọc trên Telegram; tự chia nếu quá dài."""
     if not text:
         return
-    payload = {"chat_id": chat_id, "text": text}
-    if reply_to is not None:
-        payload["reply_to_message_id"] = reply_to
-    requests.post(API.format(token=TELEGRAM_BOT_TOKEN, method="sendMessage"), json=payload, timeout=30)
+    url = API.format(token=TELEGRAM_BOT_TOKEN, method="sendMessage")
+    for i, part in enumerate(_chunks(text)):
+        payload = {"chat_id": chat_id, "text": _as_codeblock(part), "parse_mode": "MarkdownV2"}
+        if reply_to is not None and i == 0:
+            payload["reply_to_message_id"] = reply_to
+        r = requests.post(url, json=payload, timeout=30)
+        if not getattr(r, "ok", True):  # MarkdownV2 lỗi -> fallback gửi text thường
+            requests.post(url, json={"chat_id": chat_id, "text": part}, timeout=30)
 
 
 def send_document(chat_id: str, filename: str, content) -> None:
