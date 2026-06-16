@@ -90,14 +90,17 @@ def test_handle_update_ignored():
     print("PASS handle_update group không trigger -> bỏ qua")
 
 
-def test_codeblock_and_chunk():
-    cb = t._as_codeblock("**bold** | x")
-    assert cb.startswith("```\n") and cb.endswith("\n```")
-    assert "\\`" in t._as_codeblock("`code`")      # backtick được escape
-    assert "\\\\" in t._as_codeblock("a\\b")        # backslash được escape
-    parts = t._chunks("line\n" * 2000, size=100)    # ~10k ký tự -> chia nhiều phần
+def test_format_for_telegram():
+    # văn xuôi: escape ký tự đặc biệt MarkdownV2, KHÔNG tự thêm ```
+    f = t._format_for_telegram("Sprint 12 (đang chạy).")
+    assert "```" not in f and "\\(" in f and "\\." in f
+    # block ``` do agent tự bọc: giữ nguyên fence, KHÔNG escape pipe bên trong
+    f2 = t._format_for_telegram("Bảng:\n```\n| a | b |\n```")
+    assert f2.count("```") == 2 and "| a | b |" in f2
+    # chunk dài
+    parts = t._chunks("line\n" * 2000, size=100)
     assert len(parts) > 1 and all(len(p) <= 100 for p in parts)
-    print("PASS format code block + chunk dài")
+    print("PASS format Telegram (giữ fence agent, escape văn xuôi) + chunk")
 
 
 def test_handle_update_with_file():
@@ -123,6 +126,6 @@ if __name__ == "__main__":
     test_group_mention()
     test_handle_update_group()
     test_handle_update_ignored()
-    test_codeblock_and_chunk()
+    test_format_for_telegram()
     test_handle_update_with_file()
     print("\n✅ Telegram bridge PASS — parse update, trigger nhóm/private, handle_update + file.")

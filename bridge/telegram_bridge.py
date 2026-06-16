@@ -130,14 +130,34 @@ def ask_agent(message: str, user_id: str, session_id: str) -> dict:
 TG_LIMIT = 3900  # < 4096 của Telegram, chừa chỗ cho cặp ``` + ký tự escape
 
 
-def _escape_codeblock(text: str) -> str:
-    """Trong code block MarkdownV2 chỉ cần escape '\\' và '`'."""
+def _escape_code(text: str) -> str:
+    """Trong code block (``` ```), MarkdownV2 chỉ cần escape '\\' và '`'."""
     return text.replace("\\", "\\\\").replace("`", "\\`")
 
 
-def _as_codeblock(text: str) -> str:
-    """Bọc text trong ``` ``` để Telegram hiển thị monospace (giữ thẳng hàng, không vỡ markdown)."""
-    return "```\n" + _escape_codeblock(text) + "\n```"
+_MDV2_SPECIAL = set("_*[]()~`>#+-=|{}.!\\")
+
+
+def _escape_mdv2(text: str) -> str:
+    """Escape ký tự đặc biệt MarkdownV2 ở phần văn xuôi (ngoài code block)."""
+    return "".join("\\" + c if c in _MDV2_SPECIAL else c for c in text)
+
+
+def _format_for_telegram(text: str) -> str:
+    """Giữ nguyên block ``` ``` do AGENT tự bọc (bảng/dữ liệu cấu trúc), escape an toàn phần văn xuôi.
+
+    Agent tự quyết phần nào cần render (bọc ```); phần còn lại là văn xuôi bình thường.
+    """
+    segs = text.split("```")
+    if len(segs) % 2 == 0:  # số ``` lẻ (fence chưa cân) -> escape toàn bộ cho an toàn
+        return _escape_mdv2(text)
+    parts = []
+    for i, seg in enumerate(segs):
+        if i % 2 == 1:  # bên trong cặp ```
+            parts.append("```\n" + _escape_code(seg.strip("\n")) + "\n```")
+        else:
+            parts.append(_escape_mdv2(seg))
+    return "".join(parts)
 
 
 def _chunks(text: str, size: int = TG_LIMIT) -> list[str]:
@@ -160,16 +180,16 @@ def _chunks(text: str, size: int = TG_LIMIT) -> list[str]:
 
 
 def send_message(chat_id: str, text: str, reply_to: int | None = None) -> None:
-    """Gửi tin — bọc trong code block để dễ đọc trên Telegram; tự chia nếu quá dài."""
+    """Gửi tin: giữ block ``` agent tự bọc, escape văn xuôi; tự chia nếu quá dài; fallback text thường."""
     if not text:
         return
     url = API.format(token=TELEGRAM_BOT_TOKEN, method="sendMessage")
     for i, part in enumerate(_chunks(text)):
-        payload = {"chat_id": chat_id, "text": _as_codeblock(part), "parse_mode": "MarkdownV2"}
+        payload = {"chat_id": chat_id, "text": _format_for_telegram(part), "parse_mode": "MarkdownV2"}
         if reply_to is not None and i == 0:
             payload["reply_to_message_id"] = reply_to
         r = requests.post(url, json=payload, timeout=30)
-        if not getattr(r, "ok", True):  # MarkdownV2 lỗi -> fallback gửi text thường
+        if not getattr(r, "ok", True):  # MarkdownV2 lỗi -> fallback gửi text thường (raw)
             requests.post(url, json={"chat_id": chat_id, "text": part}, timeout=30)
 
 
