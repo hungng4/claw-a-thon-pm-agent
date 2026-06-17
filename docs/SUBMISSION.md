@@ -17,43 +17,43 @@
 
 ## Mô tả use case (< 300 từ)
 
-**Mạnh — Trợ lý AI cho Project Manager / Producer tổ sản xuất game**
+Mạnh — Trợ lý AI cho Project Manager / Producer tổ sản xuất game
 
-Trong sản xuất game, PM/Producer tốn rất nhiều thời gian mở Notion, lọc bảng, tổng hợp tiến độ và đốc thúc thủ công. **Mạnh** là một agent AI hoạt động như thành viên chat trong nhóm **Telegram** của team: PM chỉ cần nhắn tin tự nhiên, Mạnh truy vấn dữ liệu dự án trên **Notion** và trả lời tức thì, kèm phân tích và đề xuất.
+Trong sản xuất game, PM/Producer tốn rất nhiều thời gian mở Notion, lọc bảng, tổng hợp tiến độ và đốc thúc thủ công. Mạnh là một agent AI hoạt động như thành viên chat trong nhóm Telegram của team: PM chỉ cần nhắn tin tự nhiên, Mạnh truy vấn dữ liệu dự án trên Notion và trả lời tức thì, kèm phân tích và đề xuất.
 
 Mạnh có 4 năng lực:
-- **Sprint & task tracking** — tình hình sprint, task quá hạn, ai đang làm gì.
-- **Milestone & roadmap** — tiến độ Alpha/Beta/Launch, cảnh báo nguy cơ trễ.
-- **Risk & blocker** — phát hiện blocker, đề xuất hành động giảm thiểu.
-- **Report & communication** — tự tổng hợp daily standup / weekly report.
+- Sprint & task tracking: tình hình sprint, task quá hạn, ai đang làm gì.
+- Milestone & roadmap: tiến độ Alpha/Beta/Launch, cảnh báo nguy cơ trễ.
+- Risk & blocker: phát hiện blocker, đề xuất hành động giảm thiểu.
+- Report & communication: tự tổng hợp daily standup / weekly report, xuất được file Word/Markdown.
 
-Ví dụ: *“Có blocker nào không?”* → Mạnh liệt kê task bị chặn kèm lý do và đề xuất xử lý; *“Tạo task ‘Fix camera shake’ cho Cường due 18/06”* → ghi thẳng vào Notion.
+Ví dụ: "Có blocker nào không?" → Mạnh liệt kê task bị chặn kèm lý do và đề xuất xử lý; "Tạo task 'Fix camera shake' cho Cường due 18/06" → ghi thẳng vào Notion. Mạnh cũng nhớ ngữ cảnh qua các phiên (team, phong cách từng người) nhờ AgentBase Memory.
 
-Kiến trúc: **Custom Agent trên GreenNode AgentBase** (LLM **Qwen** qua MaaS), **Notion** làm nguồn dữ liệu, **Telegram** làm kênh giao tiếp. Agent tự khai báo là AI theo rulebook và chỉ dùng dữ liệu synthetic.
+Kiến trúc: Custom Agent trên GreenNode AgentBase (LLM Qwen qua MaaS), Notion làm nguồn dữ liệu, Telegram làm kênh giao tiếp. Agent tự khai báo là AI theo rulebook và chỉ dùng dữ liệu synthetic.
 
 Giá trị: cắt giảm thời gian PM dành cho tổng hợp/đốc thúc thủ công, phát hiện sớm rủi ro tiến độ, và đưa thông tin dự án tới cả team ngay trong công cụ chat họ dùng hằng ngày — biến quản lý sản xuất thành một cuộc hội thoại.
 
-*(~220 từ)*
+(~220 từ)
 
-### English (for "Mô tả agent chi tiết — Song ngữ")
+English (for "Mô tả agent chi tiết — Song ngữ")
 
-**Mạnh — AI assistant for Project Managers / Producers in game production**
+Mạnh — AI assistant for Project Managers / Producers in game production
 
-In game production, PMs/Producers spend hours every week opening Notion, filtering boards, chasing updates, and compiling reports. **Mạnh** is an AI agent that lives right inside the team's **Telegram** group: members ask in natural language, and Mạnh queries the project's **Notion** data and replies instantly with analysis and suggestions.
+In game production, PMs/Producers spend hours every week opening Notion, filtering boards, chasing updates, and compiling reports. Mạnh is an AI agent that lives right inside the team's Telegram group: members ask in natural language, and Mạnh queries the project's Notion data and replies instantly with analysis and suggestions.
 
 Four capabilities:
-- **Sprint & task tracking** — current sprint status, overdue tasks, who's doing what.
-- **Milestone & roadmap** — Alpha/Beta/Launch progress, delay-risk warnings.
-- **Risk & blocker** — detects blockers, proposes mitigation.
-- **Report & communication** — auto-compiles daily standup / weekly reports and can export them as Word/Markdown files.
+- Sprint & task tracking: current sprint status, overdue tasks, who's doing what.
+- Milestone & roadmap: Alpha/Beta/Launch progress, delay-risk warnings.
+- Risk & blocker: detects blockers, proposes mitigation.
+- Report & communication: auto-compiles daily standup / weekly reports and can export them as Word/Markdown files.
 
-Examples: *"Any blockers?"* → Mạnh lists blocked tasks with reasons and proposed actions; *"Create task 'Fix camera shake' for Cường due 18/06"* → writes it straight to Notion. It also remembers context across sessions (team roster, each person's preferred style) via **AgentBase Memory**.
+Examples: "Any blockers?" → Mạnh lists blocked tasks with reasons and proposed actions; "Create task 'Fix camera shake' for Cường due 18/06" → writes it straight to Notion. It also remembers context across sessions (team roster, each person's preferred style) via AgentBase Memory.
 
-Architecture: a **Custom Agent on GreenNode AgentBase** (Qwen model via MaaS), **Notion** as the data source, **Telegram** as the channel. The agent declares itself as AI per the rulebook and uses only synthetic data.
+Architecture: a Custom Agent on GreenNode AgentBase (Qwen model via MaaS), Notion as the data source, Telegram as the channel. The agent declares itself as AI per the rulebook and uses only synthetic data.
 
 Value: cuts the time PMs spend on manual aggregation and chasing, surfaces schedule risks early, and brings project info to the whole team inside the chat app they use daily — turning production management into a conversation.
 
-*(~230 words)*
+(~230 words)
 
 ---
 
