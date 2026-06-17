@@ -1,0 +1,92 @@
+name: Deploy agent to AgentBase
+
+# Push code lên main (file code) -> build image amd64 -> push Container Registry -> redeploy runtime.
+# Chạy hoàn toàn trên GitHub-hosted runner (cloud), KHÔNG cần máy bạn hay Docker local.
+#
+# === Secrets cần thêm ở GitHub: Settings → Secrets and variables → Actions → New repository secret ===
+#   GREENNODE_CLIENT_ID       (IAM service account id)
+#   GREENNODE_CLIENT_SECRET   (IAM service account secret)
+#   LLM_API_KEY               (key MaaS, từ /agentbase-llm)
+#   MEMORY_ID                 (memory store id)
+#   MEMORY_STRATEGY_ID        (ltms id)
+#   NOTION_TOKEN              (Notion internal integration token)
+#   NOTION_DB_TASKS / NOTION_DB_SPRINTS / NOTION_DB_MILESTONES / NOTION_DB_RISKS
+# (LLM_BASE_URL, LLM_MODEL, runtime id, CR path... là public nên hardcode dưới đây.)
+
+on:
+  push:
+    branches: [main]
+    paths:                      # chỉ deploy khi đụng CODE (đổi docs không redeploy)
+      - 'main.py'
+      - 'src/**'
+      - 'integrations/**'
+      - 'agent/**'
+      - 'Dockerfile'
+      - 'requirements.txt'
+  workflow_dispatch:            # cho phép bấm chạy tay trên tab Actions
+
+concurrency:                    # huỷ deploy cũ nếu push mới chồng lên
+  group: deploy-agent
+  cancel-in-progress: true
+
+env:
+  RUNTIME_ID: runtime-f925ad1f-e028-47ed-9962-e046c2b9b99b
+  REGISTRY: vcr.vngcloud.vn
+  REPO: 111480-abp112161
+  IMAGE_NAME: manh-pm-agent
+  FLAVOR: runtime-s2-general-2x4
+  LLM_BASE_URL: https://maas-llm-aiplatform-hcm.api.vngcloud.vn/v1
+  LLM_MODEL: qwen/qwen3-5-27b
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest      # runner amd64 -> build native, khỏi emulate
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Tạo IAM credentials (.greennode.json) từ secrets
+        run: |
+          cat > .greennode.json <<'JSON'
+          {"client_id": "${{ secrets.GREENNODE_CLIENT_ID }}", "client_secret": "${{ secrets.GREENNODE_CLIENT_SECRET }}"}
+          JSON
+
+      - name: Dựng .env.runtime (env inject vào container)
+        run: |
+          cat > .env.runtime <<'ENV'
+          LLM_API_KEY=${{ secrets.LLM_API_KEY }}
+          LLM_BASE_URL=${{ env.LLM_BASE_URL }}
+          LLM_MODEL=${{ env.LLM_MODEL }}
+          MEMORY_ID=${{ secrets.MEMORY_ID }}
+          MEMORY_STRATEGY_ID=${{ secrets.MEMORY_STRATEGY_ID }}
+          NOTION_TOKEN=${{ secrets.NOTION_TOKEN }}
+          NOTION_DB_TASKS=${{ secrets.NOTION_DB_TASKS }}
+          NOTION_DB_SPRINTS=${{ secrets.NOTION_DB_SPRINTS }}
+          NOTION_DB_MILESTONES=${{ secrets.NOTION_DB_MILESTONES }}
+          NOTION_DB_RISKS=${{ secrets.NOTION_DB_RISKS }}
+          ENV
+
+      - name: Test offline (gác cổng — fail thì không deploy)
+        run: ./run_tests.sh
+
+      - name: Docker login Container Registry (qua IAM)
+        run: bash .claude/skills/agentbase/scripts/cr.sh credentials docker-login
+
+      - name: Build + push image
+        run: |
+          IMAGE="${REGISTRY}/${REPO}/${IMAGE_NAME}:gha-${{ github.run_number }}"
+          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+          docker build --platform linux/amd64 -t "$IMAGE" .
+          docker push "$IMAGE"
+
+      - name: Redeploy runtime
+        run: |
+          bash .claude/skills/agentbase/scripts/runtime.sh update "$RUNTIME_ID" \
+            --image "$IMAGE" \
+            --flavor "$FLAVOR" \
+            --env-file .env.runtime \
+            --from-cr \
+            --network-mode PUBLIC
+
+      - name: Dọn file nhạy cảm
+        if: always()
+        run: rm -f .greennode.json .env.runtime
