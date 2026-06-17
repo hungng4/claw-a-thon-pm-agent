@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import base64
 import os
+import subprocess
 import sys
 import time
 
@@ -226,8 +227,24 @@ def _is_reload_cmd(text: str) -> bool:
 
 
 def _reload_bridge(update: dict) -> None:
-    """Ack update (để Telegram khỏi gửi lại /reload sau restart) rồi re-exec chính tiến trình bridge
-    -> nạp lại code mới + .env. Lệnh ẩn, KHÔNG đăng ký vào menu lệnh (/help)."""
+    """`/reload`: git pull code mới từ GitHub -> ack update -> re-exec bridge (nạp code + .env).
+    Lệnh ẩn, KHÔNG đăng ký vào menu (/help)."""
+    chat = os.environ.get("RELOAD_NOTIFY_CHAT", "")
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    # 1) git pull (--ff-only cho an toàn; lỗi thì vẫn restart code hiện tại)
+    try:
+        out = subprocess.run(["git", "-C", root, "pull", "--ff-only"],
+                             capture_output=True, text=True, timeout=60)
+        msg = ((out.stdout or "") + (out.stderr or "")).strip().splitlines()
+        last = msg[-1] if msg else "(không rõ)"
+        if chat:
+            send_message(chat, f"📥 git pull: {last[:300]}")
+    except Exception as e:  # noqa: BLE001
+        if chat:
+            send_message(chat, f"⚠️ git pull lỗi: {str(e)[:150]} — vẫn restart code hiện tại.")
+
+    # 2) ack update để Telegram khỏi gửi lại /reload sau restart
     try:
         uid = update.get("update_id")
         if uid is not None:
@@ -235,6 +252,8 @@ def _reload_bridge(update: dict) -> None:
                          params={"offset": uid + 1, "timeout": 0}, timeout=15)
     except Exception:  # noqa: BLE001
         pass
+
+    # 3) re-exec chính tiến trình -> chạy code vừa pull
     os.execv(sys.executable, [sys.executable] + sys.argv)
 
 
@@ -249,7 +268,7 @@ def handle_update(update: dict, ask_fn=ask_agent, send_fn=send_message, doc_fn=s
         if msg["is_group"] and msg["user_id"] not in ADMIN_USER_IDS:
             send_fn(msg["chat_id"], "Lệnh /reload chỉ admin dùng được.", msg["message_id"])
             return True
-        send_fn(msg["chat_id"], "🔄 Đang khởi động lại bridge…", None)
+        send_fn(msg["chat_id"], "🔄 Đang pull code mới + khởi động lại…", None)
         os.environ["RELOAD_NOTIFY_CHAT"] = msg["chat_id"]  # process mới sẽ báo "xong" về chat này
         reload_fn(update)
         return True

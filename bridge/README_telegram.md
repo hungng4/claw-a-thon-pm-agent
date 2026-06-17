@@ -51,7 +51,8 @@ chạy trên máy bạn (hoặc bất kỳ máy nào có internet), **không c�
 | `ADMIN_USER_IDS` | — | id Telegram được phép `/reload` trong nhóm (phân tách dấu phẩy) |
 
 ## Lệnh ẩn `/reload`
-Nhắn **`/reload`** cho bot để **khởi động lại bridge** (nạp lại code mới + `.env` — tiện sau khi `git pull`).
+Nhắn **`/reload`** cho bot để **`git pull` code mới từ GitHub + khởi động lại bridge** (nạp code + `.env`).
+Báo từng bước: `🔄 đang pull + restart` → `📥 git pull: <kết quả>` → `✅ đã khởi động lại xong`.
 - Là **lệnh ẩn**: KHÔNG đăng ký vào menu lệnh, không hiện ở `/help`.
 - **DM**: ai cũng dùng được. **Trong nhóm**: chỉ user có id trong `ADMIN_USER_IDS`.
 - Lấy id Telegram của bạn: nhắn `@userinfobot`. Set `ADMIN_USER_IDS=123456789` trong `.env`.
