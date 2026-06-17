@@ -28,6 +28,15 @@ DB_ENV = {
     "risks": "NOTION_DB_RISKS",
 }
 
+# Field THỰC SỰ tồn tại trong mỗi DB (khớp DB đã tạo trên Notion). Lọc theo đây trước khi
+# create để LLM lỡ gửi field lạ (vd Sprint/Milestone relation chưa có, hoặc field bịa) không gây 400.
+DB_PROPS = {
+    "tasks": {"title", "status", "assignee", "discipline", "estimate", "due", "blocker note", "release tag"},
+    "sprints": {"name", "status", "start", "end", "goal", "velocity"},
+    "milestones": {"name", "status", "target", "progress", "notes"},
+    "risks": {"title", "severity", "owner", "mitigation", "status"},
+}
+
 
 class NotionClient:
     def __init__(self, token: str | None = None):
@@ -81,6 +90,9 @@ class NotionClient:
         return [self._flatten(p) for p in data.get("results", [])]
 
     def create(self, database: str, properties: dict) -> dict:
+        allowed = DB_PROPS.get(database.lower())
+        if allowed:  # bỏ field không tồn tại trong DB (tránh 400 "X is not a property")
+            properties = {k: v for k, v in properties.items() if k.lower() in allowed}
         payload = {
             "parent": {"database_id": self._db_id(database)},
             "properties": _to_notion_props(properties),
@@ -138,6 +150,18 @@ _RELATION_FIELDS = {"sprint", "milestone", "linked task"}
 _KINDS = {"select", "status", "date", "number", "text", "relation"}
 
 
+def _looks_like_notion_id(s: Any) -> bool:
+    """True nếu chuỗi giống page_id Notion (32 hex, có/không dấu gạch)."""
+    s = str(s).replace("-", "").lower()
+    return len(s) == 32 and all(c in "0123456789abcdef" for c in s)
+
+
+def _relation_ids(values: Any) -> list[dict]:
+    """Chỉ giữ id hợp lệ; tên (vd 'Sprint 12') bị bỏ qua để khỏi 400 (relation cần page_id)."""
+    vals = values if isinstance(values, list) else [values]
+    return [{"id": v} for v in vals if _looks_like_notion_id(v)]
+
+
 def _to_notion_props(props: dict) -> dict:
     """Chuyển dict đơn giản {field: value} → định dạng properties của Notion.
 
@@ -163,7 +187,7 @@ def _to_notion_props(props: dict) -> dict:
             elif kind == "text":
                 out[field] = {"rich_text": [{"text": {"content": str(v)}}]}
             elif kind == "relation":
-                out[field] = {"relation": [{"id": i} for i in v]}
+                out[field] = {"relation": _relation_ids(v)}
             continue
 
         # (2) Suy kiểu theo tên field cho plain value
@@ -181,8 +205,7 @@ def _to_notion_props(props: dict) -> dict:
             except (TypeError, ValueError):
                 out[field] = {"number": None}
         elif f in _RELATION_FIELDS:
-            ids = value if isinstance(value, list) else [value]
-            out[field] = {"relation": [{"id": i} for i in ids if i]}
+            out[field] = {"relation": _relation_ids(value)}
         else:
             out[field] = {"rich_text": [{"text": {"content": str(value)}}]}
     return out
