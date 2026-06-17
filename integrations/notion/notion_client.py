@@ -128,35 +128,61 @@ def _read_prop(prop: dict) -> Any:
     return val
 
 
+# Suy kiểu Notion theo TÊN field (khớp schema 4 database) — để LLM gửi value thường
+# (Status="Todo", Due="2026-06-18", Estimate=5) vẫn map đúng kiểu, không bị 400.
+_TITLE_FIELDS = {"title", "name"}
+_SELECT_FIELDS = {"status", "severity", "discipline"}
+_DATE_FIELDS = {"due", "start", "end", "target"}
+_NUMBER_FIELDS = {"estimate", "progress", "velocity"}
+_RELATION_FIELDS = {"sprint", "milestone", "linked task"}
+_KINDS = {"select", "status", "date", "number", "text", "relation"}
+
+
 def _to_notion_props(props: dict) -> dict:
     """Chuyển dict đơn giản {field: value} → định dạng properties của Notion.
 
-    Quy ước value:
-      str dạng title  -> dùng key 'Title'/'Name' sẽ map title
-      ('select', x)    -> select
-      ('date', 'YYYY-MM-DD') -> date
-      ('number', n)    -> number
-      ('text', s)      -> rich_text
-      ('relation', [ids]) -> relation
+    2 cách dùng:
+      1. Plain value (LLM gửi JSON): suy kiểu theo TÊN field (Status→select,
+         Due/Start/End/Target→date, Estimate/Progress/Velocity→number,
+         Title/Name→title, Sprint/Milestone/Linked task→relation, còn lại→rich_text).
+      2. Override tường minh: tuple/list 2 phần ('select', x) / ('date', 'YYYY-MM-DD') / ...
     """
     out: dict[str, Any] = {}
     for field, value in props.items():
-        if isinstance(value, tuple):
+        # (1) Override tường minh: ('kind', value)
+        if isinstance(value, (tuple, list)) and len(value) == 2 and value[0] in _KINDS:
             kind, v = value
             if kind == "select":
-                out[field] = {"select": {"name": v}}
+                out[field] = {"select": {"name": str(v)}}
             elif kind == "status":
-                out[field] = {"status": {"name": v}}
+                out[field] = {"status": {"name": str(v)}}
             elif kind == "date":
                 out[field] = {"date": {"start": v}}
             elif kind == "number":
                 out[field] = {"number": v}
             elif kind == "text":
-                out[field] = {"rich_text": [{"text": {"content": v}}]}
+                out[field] = {"rich_text": [{"text": {"content": str(v)}}]}
             elif kind == "relation":
                 out[field] = {"relation": [{"id": i} for i in v]}
-        elif field.lower() in ("title", "name"):
+            continue
+
+        # (2) Suy kiểu theo tên field cho plain value
+        f = field.lower()
+        empty = value in (None, "")
+        if f in _TITLE_FIELDS:
             out[field] = {"title": [{"text": {"content": str(value)}}]}
+        elif f in _SELECT_FIELDS:
+            out[field] = {"select": ({"name": str(value)} if not empty else None)}
+        elif f in _DATE_FIELDS:
+            out[field] = {"date": ({"start": str(value)} if not empty else None)}
+        elif f in _NUMBER_FIELDS:
+            try:
+                out[field] = {"number": (None if empty else float(value))}
+            except (TypeError, ValueError):
+                out[field] = {"number": None}
+        elif f in _RELATION_FIELDS:
+            ids = value if isinstance(value, list) else [value]
+            out[field] = {"relation": [{"id": i} for i in ids if i]}
         else:
             out[field] = {"rich_text": [{"text": {"content": str(value)}}]}
     return out
