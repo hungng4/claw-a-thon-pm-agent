@@ -35,6 +35,26 @@ Giá trị: cắt giảm thời gian PM dành cho tổng hợp/đốc thúc th�
 
 *(~220 từ)*
 
+### English (for "Mô tả agent chi tiết — Song ngữ")
+
+**Mạnh — AI assistant for Project Managers / Producers in game production**
+
+In game production, PMs/Producers spend hours every week opening Notion, filtering boards, chasing updates, and compiling reports. **Mạnh** is an AI agent that lives right inside the team's **Telegram** group: members ask in natural language, and Mạnh queries the project's **Notion** data and replies instantly with analysis and suggestions.
+
+Four capabilities:
+- **Sprint & task tracking** — current sprint status, overdue tasks, who's doing what.
+- **Milestone & roadmap** — Alpha/Beta/Launch progress, delay-risk warnings.
+- **Risk & blocker** — detects blockers, proposes mitigation.
+- **Report & communication** — auto-compiles daily standup / weekly reports and can export them as Word/Markdown files.
+
+Examples: *"Any blockers?"* → Mạnh lists blocked tasks with reasons and proposed actions; *"Create task 'Fix camera shake' for Cường due 18/06"* → writes it straight to Notion. It also remembers context across sessions (team roster, each person's preferred style) via **AgentBase Memory**.
+
+Architecture: a **Custom Agent on GreenNode AgentBase** (Qwen model via MaaS), **Notion** as the data source, **Telegram** as the channel. The agent declares itself as AI per the rulebook and uses only synthetic data.
+
+Value: cuts the time PMs spend on manual aggregation and chasing, surfaces schedule risks early, and brings project info to the whole team inside the chat app they use daily — turning production management into a conversation.
+
+*(~230 words)*
+
 ---
 
 ## Kịch bản video demo (2–3 phút)
