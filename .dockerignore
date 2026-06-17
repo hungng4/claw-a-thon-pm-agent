@@ -21,6 +21,8 @@ credentials.json
 .gitignore
 .claude/
 greennode-agentbase-skills/
+scripts/
+.github/
 
 # Tài liệu / dev-only (LƯU Ý: KHÔNG dùng *.md blanket — agent/*.md cần cho runtime)
 README.md
