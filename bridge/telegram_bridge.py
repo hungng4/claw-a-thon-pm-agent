@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import base64
 import os
+import sys
 import time
 
 import requests
@@ -37,6 +38,8 @@ BOT_USERNAME = os.environ.get("BOT_USERNAME", "").lstrip("@").strip().lower()
 BOT_PREFIXES = [p.strip().lower() for p in os.environ.get("BOT_PREFIXES", "mạnh,/manh,manh").split(",") if p.strip()]
 AGENT_TIMEOUT = int(os.environ.get("AGENT_TIMEOUT", "60"))
 POLL_TIMEOUT = int(os.environ.get("POLL_TIMEOUT", "30"))
+# Telegram user id được phép /reload trong NHÓM (phân tách dấu phẩy). DM thì ai cũng dùng được.
+ADMIN_USER_IDS = {x.strip() for x in os.environ.get("ADMIN_USER_IDS", "").split(",") if x.strip()}
 
 API = "https://api.telegram.org/bot{token}/{method}"
 
@@ -217,11 +220,38 @@ def send_document(chat_id: str, filename: str, content, retries: int = 4) -> boo
     return False
 
 
-def handle_update(update: dict, ask_fn=ask_agent, send_fn=send_message, doc_fn=send_document) -> bool:
-    """Xử lý 1 update. Trả True nếu đã trả lời, False nếu bỏ qua. (ask_fn/send_fn/doc_fn inject để test.)"""
+def _is_reload_cmd(text: str) -> bool:
+    """Khớp lệnh ẩn /reload (kể cả dạng /reload@botname trong nhóm)."""
+    return text.strip().lower().split("@")[0] == "/reload"
+
+
+def _reload_bridge(update: dict) -> None:
+    """Ack update (để Telegram khỏi gửi lại /reload sau restart) rồi re-exec chính tiến trình bridge
+    -> nạp lại code mới + .env. Lệnh ẩn, KHÔNG đăng ký vào menu lệnh (/help)."""
+    try:
+        uid = update.get("update_id")
+        if uid is not None:
+            requests.get(API.format(token=TELEGRAM_BOT_TOKEN, method="getUpdates"),
+                         params={"offset": uid + 1, "timeout": 0}, timeout=15)
+    except Exception:  # noqa: BLE001
+        pass
+    os.execv(sys.executable, [sys.executable] + sys.argv)
+
+
+def handle_update(update: dict, ask_fn=ask_agent, send_fn=send_message, doc_fn=send_document,
+                  reload_fn=_reload_bridge) -> bool:
+    """Xử lý 1 update. Trả True nếu đã xử lý, False nếu bỏ qua. (các *_fn inject để test.)"""
     msg = extract_message(update)
     if not msg or not msg["chat_id"]:
         return False
+    # Lệnh ẩn /reload: restart bridge. DM thì ai cũng được; trong nhóm chỉ ADMIN_USER_IDS.
+    if _is_reload_cmd(msg["text"]):
+        if msg["is_group"] and msg["user_id"] not in ADMIN_USER_IDS:
+            send_fn(msg["chat_id"], "Lệnh /reload chỉ admin dùng được.", msg["message_id"])
+            return True
+        send_fn(msg["chat_id"], "🔄 Đang khởi động lại bridge…", None)
+        reload_fn(update)
+        return True
     respond, content = should_respond(msg)
     if not respond:
         return False

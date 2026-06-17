@@ -48,6 +48,14 @@ chạy trên máy bạn (hoặc bất kỳ máy nào có internet), **không c�
 | `BOT_PREFIXES` | `mạnh,/manh,manh` | prefix kích hoạt trong nhóm |
 | `AGENT_TIMEOUT` | `60` | timeout (giây) gọi agent |
 | `POLL_TIMEOUT` | `30` | long-poll timeout getUpdates |
+| `ADMIN_USER_IDS` | — | id Telegram được phép `/reload` trong nhóm (phân tách dấu phẩy) |
+
+## Lệnh ẩn `/reload`
+Nhắn **`/reload`** cho bot để **khởi động lại bridge** (nạp lại code mới + `.env` — tiện sau khi `git pull`).
+- Là **lệnh ẩn**: KHÔNG đăng ký vào menu lệnh, không hiện ở `/help`.
+- **DM**: ai cũng dùng được. **Trong nhóm**: chỉ user có id trong `ADMIN_USER_IDS`.
+- Lấy id Telegram của bạn: nhắn `@userinfobot`. Set `ADMIN_USER_IDS=123456789` trong `.env`.
+- Tự ack update trước khi restart → không bị lặp `/reload`.
 
 ## Mapping hội thoại
 - `user_id` (người gửi) → header `X-GreenNode-AgentBase-User-Id` (actor cho long-term memory).

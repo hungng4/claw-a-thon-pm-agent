@@ -132,6 +132,26 @@ def test_handle_update_binary_file():
     print("PASS handle_update decode content_b64 -> bytes (gửi file .docx)")
 
 
+def test_reload_command():
+    cap = {"reloaded": False, "msgs": []}
+    send = lambda chat_id, text, reply_to=None: cap["msgs"].append(text)
+    rld = lambda update: cap.update(reloaded=True)
+    # DM: ai cũng /reload được
+    done = t.handle_update(_update("/reload", chat_type="private", chat_id="d1"), send_fn=send, reload_fn=rld)
+    assert done is True and cap["reloaded"] is True
+    # Nhóm, non-admin -> KHÔNG reload (bị chặn)
+    cap["reloaded"] = False
+    saved = t.ADMIN_USER_IDS
+    t.ADMIN_USER_IDS = set()
+    try:
+        done2 = t.handle_update(_update("/reload@manh_pmbot", chat_type="group", chat_id="g1", user_id=99),
+                                send_fn=send, reload_fn=rld)
+        assert done2 is True and cap["reloaded"] is False
+    finally:
+        t.ADMIN_USER_IDS = saved
+    print("PASS /reload: DM restart, nhóm non-admin bị chặn")
+
+
 if __name__ == "__main__":
     test_extract_basic()
     test_private_always()
@@ -145,4 +165,5 @@ if __name__ == "__main__":
     test_format_for_telegram()
     test_handle_update_with_file()
     test_handle_update_binary_file()
-    print("\n✅ Telegram bridge PASS — parse update, trigger nhóm/private, handle_update + file.")
+    test_reload_command()
+    print("\n✅ Telegram bridge PASS — parse update, trigger nhóm/private, handle_update + file + /reload.")
