@@ -1,85 +1,82 @@
 # Mạnh — PM Agent for Game Production 🤖
 
-> Claw-a-thon 2026 · Track: **Agentic Assistant**
-> Trợ lý AI hỗ trợ Project Manager / Producer điều phối dự án game, deploy thành tài khoản chat trong nhóm **Zalo**, dữ liệu trên **Notion**.
+> Claw-a-thon 2026 · Track: **Agentic Assistant** · Team: **Autobot**
+> Trợ lý AI hỗ trợ Project Manager / Producer điều phối dự án game — hoạt động như **bot Telegram** trong nhóm team, dữ liệu trên **Notion**, chạy trên **GreenNode AgentBase**.
 
-## Mô tả ngắn (299 ký tự — copy thẳng vào Submission Form)
-> Vấn đề: PM game tốn nhiều giờ tổng hợp tiến độ, blocker, milestone từ nhiều nguồn. Người dùng: Producer/PM & team sản xuất game. Giải pháp: agent AI trong nhóm Zalo, đọc/ghi Notion, tự trả lời về sprint, milestone, rủi ro và viết báo cáo. Giá trị: tiết kiệm giờ, cảnh báo trễ sớm, minh bạch tiến độ.
+**Trải nghiệm:** Telegram bot 👉 https://t.me/manh_pmbot
+**Endpoint (VNG domain):** https://endpoint-36cacee7-c038-4d8a-9e8f-1202f51d4624.agentbase-runtime.aiplatform.vngcloud.vn
+
+---
 
 ## Vấn đề
-Trong sản xuất game, PM/Producer phải liên tục tổng hợp tiến độ từ nhiều bộ phận (Art, Design, Engineering, QA, LiveOps), bám milestone (Alpha/Beta/Soft Launch), gỡ blocker và viết báo cáo. Việc này tốn thời gian, dễ sót, và thông tin tản mát.
+PM/Producer game tốn hàng giờ mỗi tuần mở Notion, lọc bảng, tổng hợp tiến độ, gỡ blocker và viết báo cáo. Thông tin tản mát, dễ sót, dễ trễ.
 
 ## Giải pháp
-**Mạnh** là agent AI sống trong nhóm Zalo của team. Hỏi bằng tiếng Việt tự nhiên, agent tự truy vấn Notion và trả lời tức thì về 4 mảng:
+**Mạnh** là agent AI sống trong nhóm Telegram của team. Hỏi bằng tiếng Việt tự nhiên → Mạnh truy vấn Notion và trả lời tức thì, kèm phân tích + đề xuất. 4 năng lực:
 
-1. **Sprint & Task tracking** — tổng quan sprint, % hoàn thành, task quá hạn, standup digest.
-2. **Milestone & Roadmap** — bám mốc lớn, cảnh báo nguy cơ trễ kèm phân tích.
-3. **Risk & Blocker** — phát hiện blocker, dependency chéo, đề xuất hành động & owner.
-4. **Report & Communication** — weekly report, release note, cập nhật stakeholder.
+1. **Sprint & Task tracking** — tổng quan sprint, task quá hạn, ai đang làm gì.
+2. **Milestone & Roadmap** — bám mốc Alpha/Beta/Launch, cảnh báo nguy cơ trễ.
+3. **Risk & Blocker** — phát hiện blocker, đề xuất hành động giảm thiểu.
+4. **Report & Communication** — tự tổng hợp standup/weekly report, **xuất file** (.md/.csv/.docx Word) gửi thẳng vào Telegram.
 
-Agent **tự khai báo là AI** với người dùng (tuân thủ rulebook mục 11.1) và **không bịa số liệu** — mọi con số lấy từ Notion.
+Thêm: **nhớ ngữ cảnh xuyên phiên** (lịch sử hội thoại + team + phong cách từng người) qua **AgentBase Memory**; **ghi thẳng vào Notion** (tạo/cập nhật task). Agent **tự khai báo là AI** (rulebook 11.1) và chỉ dùng **dữ liệu synthetic**.
 
 ## Kiến trúc
 ```
-Nhóm Zalo ──webhook──► zalo_adapter.py ──► PMAgent (agent.py)
-                                              │
-                          system_prompt + 4 skill playbooks
-                                              │
-                                   Model MaaS (Gemma/Qwen)
-                                              │
-                                   tool-calling ──► Notion (Tasks/Sprints/Milestones/Risks)
+[Nhóm/Chat Telegram]
+        │  long-polling
+        ▼
+bridge/telegram_bridge.py   (chạy trên máy/VM — nối Telegram ↔ agent)
+        │  POST /invocations (+ header user/session)
+        ▼
+main.py  →  GreenNodeAgentBaseApp  (Custom Agent trên AgentBase, port 8080)
+        │
+   PMAgent (src/agent.py): system prompt + 4 skill, tool-calling loop
+        ├─► LLM: Qwen (GreenNode MaaS, OpenAI-compatible)
+        ├─► Notion REST (Tasks / Sprints / Milestones / Risks)
+        └─► AgentBase Memory (events + long-term records: team, phong cách)
 ```
+
+## Model & tuân thủ luật
+- **LLM:** `qwen/qwen3-5-27b` qua **GreenNode AI Platform (MaaS)** — model nội bộ cuộc thi, không dùng model ngoài.
+- ✅ Agent tự khai báo là AI khi vào nhóm / khi được chào (mục 11.1).
+- ✅ Chỉ dùng dữ liệu **synthetic/ẩn danh**, không PII / dữ liệu khách hàng thật.
+- Rulebook: https://greennode.ai/claw-a-thon-rulebook
+
+## Chạy & test (local, không cần creds)
+```bash
+./run_tests.sh        # compile + 5 bộ test offline (Notion props, agent loop, webhook, 2 bridge)
+```
+Cần chạy thật (điền `.env` theo `.env.example`):
+```bash
+pip install -r requirements.txt
+python3 src/agent.py                  # REPL chat với agent (cần LLM + Notion creds)
+python3 bridge/telegram_bridge.py     # bridge Telegram (cần TELEGRAM_BOT_TOKEN + AGENT_ENDPOINT_URL)
+```
+
+## Deploy (Custom Agent trên AgentBase)
+Build Docker → push Container Registry → tạo/cập nhật runtime. Chi tiết đầy đủ (tài nguyên đã deploy, biến môi trường, redeploy, known issues) ở **[`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)**.
 
 ## Cấu trúc repo
 ```
+main.py                       # entrypoint AgentBase (Custom Agent)
+Dockerfile / .dockerignore
+src/agent.py                  # PMAgent: tool-calling loop, GREETING, export_file/remember
+integrations/
+  notion/notion_client.py     # wrap Notion REST + filters; schema.md = data model
+  docx_export.py              # markdown → file .docx (Word)
 agent/
-  system_prompt.md          # persona + luật hành xử + khai báo AI
-  config.yaml               # model, skills, tools, lịch báo cáo
-  skills/                   # 4 playbook: sprint / milestone / risk / reporting
-integrations/notion/
-  schema.md                 # data model 4 database Notion
-  notion_client.py          # helper query/create/update/comment
-src/
-  agent.py                  # vòng lặp hội thoại + tool-calling
-  zalo_adapter.py           # webhook Zalo OA
+  system_prompt.md, skills/   # persona + 4 playbook (nhồi vào prompt)
+  config.yaml                 # model, skills, kênh
+bridge/
+  telegram_bridge.py          # kênh chính (Telegram, long-polling) + README_telegram.md
+  openzca_bridge.py           # phương án phụ (Zalo cá nhân)
+tests/                        # 5 bộ test offline (run_tests.sh)
 docs/
-  sample_data.md            # dữ liệu synthetic + kịch bản demo video
-tests/
-  test_notion_props.py      # test offline chuyển đổi property
+  sample_data.md              # dữ liệu synthetic + kịch bản demo
+  DEPLOYMENT.md               # handoff: deploy/vận hành
+  SUBMISSION.md, video_script.md
 ```
-
-## Kiểm tra agent chạy được (không cần creds)
-```bash
-./run_tests.sh        # compile + 3 bộ test offline (mock model + Notion + Zalo)
-```
-Bộ test này chứng minh: chuyển đổi dữ liệu Notion, **vòng tool-calling end-to-end** (model gọi tool → agent query → trả lời), và webhook Zalo (boot Flask, tự khai báo AI, route tin nhắn). Không cần MaaS/Notion/Zalo thật.
-
-## Quickstart (local)
-```bash
-pip install -r requirements.txt
-cp .env.example .env          # điền NOTION_TOKEN, MAAS_API_KEY, db ids, zalo token...
-
-# Tạo 4 database trên Notion theo integrations/notion/schema.md, nhập docs/sample_data.md
-
-./run_tests.sh                        # test offline (không cần network)
-python src/agent.py                   # REPL chat thử với agent (cần MAAS_API_KEY + NOTION_TOKEN)
-python src/zalo_adapter.py            # chạy webhook server (port 8080)
-```
-
-## Deploy trên AgentBase
-1. Push repo (đã xong).
-2. Tạo OpenClaw instance, nạp `agent/config.yaml` + `system_prompt.md` + skills.
-3. Cấu hình MaaS model (Gemma/Qwen) và Notion connector qua biến môi trường.
-4. Kết nối webhook Zalo OA tới `/webhook/zalo`, thêm agent vào nhóm.
-
-## Tuân thủ luật Claw-a-thon
-- ✅ Agent tự khai báo là AI ngay khi vào nhóm / khi được chào (mục 11.1).
-- ✅ Chỉ dùng dữ liệu mẫu/synthetic, không PII hay dữ liệu khách hàng thật (mục 9, 11).
-- ✅ Ưu tiên model MaaS (Gemma/Qwen) theo tinh thần cuộc thi (FAQ).
-
-## Nguồn tham khảo
-- Notion API: https://developers.notion.com
-- Claw-a-thon 2026 Rulebook: https://greennode.ai/claw-a-thon-rulebook
 
 ---
-*Sản phẩm dự thi Claw-a-thon 2026. Bản quyền theo điều khoản cuộc thi (mục 9.2).*
+*Sản phẩm dự thi Claw-a-thon 2026 — Team Autobot. Dữ liệu trong demo là synthetic.*
