@@ -250,6 +250,7 @@ def handle_update(update: dict, ask_fn=ask_agent, send_fn=send_message, doc_fn=s
             send_fn(msg["chat_id"], "Lệnh /reload chỉ admin dùng được.", msg["message_id"])
             return True
         send_fn(msg["chat_id"], "🔄 Đang khởi động lại bridge…", None)
+        os.environ["RELOAD_NOTIFY_CHAT"] = msg["chat_id"]  # process mới sẽ báo "xong" về chat này
         reload_fn(update)
         return True
     respond, content = should_respond(msg)
@@ -279,6 +280,13 @@ def handle_update(update: dict, ask_fn=ask_agent, send_fn=send_message, doc_fn=s
 def poll_loop() -> None:
     offset = None
     print(f"[tg-bridge] long-polling… -> agent: {AGENT_ENDPOINT_URL}")
+    # Nếu vừa /reload (process mới sau execv): báo về chat đã yêu cầu là đã khởi động xong.
+    notify_chat = os.environ.pop("RELOAD_NOTIFY_CHAT", "")
+    if notify_chat:
+        try:
+            send_message(notify_chat, "✅ Bridge đã khởi động lại xong — sẵn sàng nhận lệnh!")
+        except Exception as e:  # noqa: BLE001
+            print(f"[tg-bridge] không gửi được thông báo reload: {e}")
     while True:
         try:
             params = {"timeout": POLL_TIMEOUT}
