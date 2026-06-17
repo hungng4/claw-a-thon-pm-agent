@@ -65,6 +65,13 @@ jobs:
           NOTION_DB_RISKS=${{ secrets.NOTION_DB_RISKS }}
           ENV
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Cài Python deps cho test
+        run: pip install -r requirements.txt
+
       - name: Test offline (gác cổng — fail thì không deploy)
         run: ./run_tests.sh
 
