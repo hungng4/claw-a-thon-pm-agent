@@ -4,7 +4,6 @@
 > Trợ lý AI hỗ trợ Project Manager / Producer điều phối dự án game — hoạt động như **bot Telegram** trong nhóm team, dữ liệu trên **Notion**, chạy trên **GreenNode AgentBase**.
 
 **Trải nghiệm:** Telegram bot 👉 https://t.me/manh_pmbot
-**Endpoint (VNG domain):** https://endpoint-36cacee7-c038-4d8a-9e8f-1202f51d4624.agentbase-runtime.aiplatform.vngcloud.vn
 
 ---
 
