@@ -18,7 +18,7 @@ Cấu hình qua biến môi trường:
     BOT_USERNAME        (tuỳ chọn)  username bot (không gồm @), để nhận diện @mention trong nhóm
     BOT_PREFIXES        (mặc "mạnh,/manh,manh")  prefix kích hoạt trong nhóm
     AGENT_TIMEOUT       (mặc 60)    timeout (giây) gọi agent
-    POLL_TIMEOUT        (mặc 30)    long-poll timeout (giây) cho getUpdates
+    POLL_TIMEOUT        (mặc 10)    long-poll timeout (giây) cho getUpdates — để ngắn nếu mạng hay cắt kết nối
 """
 from __future__ import annotations
 
@@ -38,7 +38,7 @@ AGENT_ENDPOINT_URL = os.environ.get("AGENT_ENDPOINT_URL", "").rstrip("/")
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "").lstrip("@").strip().lower()
 BOT_PREFIXES = [p.strip().lower() for p in os.environ.get("BOT_PREFIXES", "mạnh,/manh,manh").split(",") if p.strip()]
 AGENT_TIMEOUT = int(os.environ.get("AGENT_TIMEOUT", "60"))
-POLL_TIMEOUT = int(os.environ.get("POLL_TIMEOUT", "30"))
+POLL_TIMEOUT = int(os.environ.get("POLL_TIMEOUT", "10"))  # long-poll ngắn: mạng hay cắt kết nối giữ lâu
 # Telegram user id được phép /reload trong NHÓM (phân tách dấu phẩy). DM thì ai cũng dùng được.
 ADMIN_USER_IDS = {x.strip() for x in os.environ.get("ADMIN_USER_IDS", "").split(",") if x.strip()}
 
